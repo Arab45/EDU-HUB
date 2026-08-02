@@ -1,4 +1,4 @@
-import logo from "./assets/logo/EDU.png";
+import logo from "../assets/logo/EDU.png";
 
 function Login() {
   return (

@@ -1,5 +1,5 @@
-import Header from "./header"
-import Login from "./login"
+import Header from "./pages/header"
+import Login from "./pages/login"
 
 function App() {
   return (
