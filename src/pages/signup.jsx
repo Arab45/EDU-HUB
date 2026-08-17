@@ -34,9 +34,9 @@ function Signup() {
             </div>
         </div>
       </div>
-      <div className="flex w-1/2 bg-slate-50 h-screen text-black">
-        <div className="flex flex-col gap-4 w-full items-center justify-center">
-          <div className="flex flex-col">
+      <div className="flex flex-1 bg-slate-50 h-screen text-black p-4 justify-center">
+        <div className="flex flex-col gap-4 w-full">
+          <div className="flex flex-col mx-4">
           <p className="font-bold text-xl">
             Basic Information
           </p>
@@ -92,5 +92,6 @@ function Signup() {
     </div>
   );
 }
+
 
 export default Signup;

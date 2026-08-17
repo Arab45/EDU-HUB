@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import logo from "../assets/logo/EDU.png";
+import { FcGraduationCap } from "react-icons/fc";
+import { GiArchiveResearch } from "react-icons/gi";
 
 function Onboarding() {
 
@@ -49,11 +51,13 @@ function Onboarding() {
             <p>Select the role that best describes you</p>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col border rounded border-slate-400 p-4 hover:bg-slate-200 h-44 items-baseline justify-center">
+          <div className="flex flex-col border rounded border-slate-400 p-4 hover:bg-slate-200 h-44 items-center justify-center">
+            <GiArchiveResearch className="text-3xl mx-auto text-slate-900" />
             <p className="font-semibold">Researcher</p>
             <p>Share your work, find collaborators</p>
           </div>
           <div className="flex flex-col border rounded border-slate-400 p-4 hover:bg-slate-200 h-44 items-center justify-center">
+              <FcGraduationCap className="text-3xl mx-auto text-slate-900" />
             <p className="font-semibold">Student</p>
             <p>Explore projects, gain experience</p>
           </div>
