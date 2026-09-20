@@ -1,71 +1,69 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { GiArchiveResearch } from "react-icons/gi";
 import { FcGraduationCap } from "react-icons/fc";
-import Stepper from "../components/stepper";
+import AuthShell from "../components/AuthShell";
+import PrimaryButton from "../components/primaryButton";
 
-function RoleCard({ icon, title, description }) {
+function RoleCard({ icon, title, description, selected, onClick }) {
   return (
-    <div className="flex flex-col border rounded border-slate-400 p-4 h-44 items-center justify-center cursor-pointer transition-colors duration-300 ease-in-out hover:bg-slate-200 hover:border-orange-400">
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-44 flex-col items-center justify-center gap-1 rounded-xl border p-4 text-center transition-colors duration-300 ease-in-out ${
+        selected
+          ? "border-emerald-600 bg-emerald-50"
+          : "border-slate-200 hover:bg-slate-50"
+      }`}
+    >
       {icon}
-      <p className="font-semibold">{title}</p>
-      <p>{description}</p>
-    </div>
+      <p className="font-semibold text-slate-900">{title}</p>
+      <p className="text-sm text-slate-500">{description}</p>
+    </button>
   );
 }
 
 function Onboarding() {
+  const navigate = useNavigate();
+  const [role, setRole] = useState(null);
+
   return (
-    <div className="flex min-h-screen bg-background text-primary">
-      <div className="flex flex-col justify-between w-1/2 h-screen p-4">
-        {/* <img src={logo} alt="logo" className='sm:w-screen h-32'/> */}
-        <div>
-          <p className="font-bold sm:text-2xl p-2">
-            EDUCATION DEVELOPMENT UNIT HUB
+    <AuthShell currentStep={1}>
+      <div className="flex flex-col gap-6">
+        <div className="text-center">
+          <p className="font-serif text-2xl font-bold text-slate-900">
+            Join as a...
           </p>
-          <div className="flex flex-col gap-2 p-2">
-            <p>
-              Connect with brilliant minds. Collaborate on groundbreaking
-              research. Shape the future of discovery.
-            </p>
-          </div>
+          <p className="text-slate-500">
+            Select the role that best describes you
+          </p>
         </div>
 
-        <Stepper currentStep={1} />
-      </div>
-
-      <div className="flex w-1/2 bg-slate-50 h-screen text-black p-4 justify-center">
-        <div className="flex flex-col gap-4 w-full">
-          <div className="flex flex-col items-center justify-center">
-            <p className="font-bold text-xl text-black mx-4">Join as a...</p>
-            <p>Select the role that best describes you</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <RoleCard
-              icon={
-                <GiArchiveResearch className="text-3xl mx-auto text-slate-900" />
-              }
-              title="Researcher"
-              description="Share your work, find collaborators"
-            />
-            <RoleCard
-              icon={
-                <FcGraduationCap className="text-3xl mx-auto text-slate-900" />
-              }
-              title="Student"
-              description="Explore projects, gain experience"
-            />
-          </div>
-
-          <Link
-            to="/login"
-            className="flex flex-col items-center justify-center bg-slate-900 text-white p-4 rounded-2xl font-bold cursor-pointer transition-colors duration-300 ease-in-out hover:bg-orange-500"
-          >
-            Continue
-          </Link>
+        <div className="grid grid-cols-2 gap-3">
+          <RoleCard
+            icon={<GiArchiveResearch className="text-3xl text-emerald-800" />}
+            title="Researcher"
+            description="Share your work, find collaborators"
+            selected={role === "researcher"}
+            onClick={() => setRole("researcher")}
+          />
+          <RoleCard
+            icon={<FcGraduationCap className="text-3xl" />}
+            title="Student"
+            description="Explore projects, gain experience"
+            selected={role === "student"}
+            onClick={() => setRole("student")}
+          />
         </div>
+
+        <PrimaryButton
+          disabled={!role}
+          onClick={() => navigate("/signup")}
+        >
+          Continue
+        </PrimaryButton>
       </div>
-    </div>
+    </AuthShell>
   );
 }
 
