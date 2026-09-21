@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
-import PrimaryButton from "../components/primaryButton";
-import FormField from "../components/form";
+import { PrimaryButton, SecondaryButton } from "../components/PrimaryButton";
+import FormField from "../components/Form";
 import TagInputField from "../components/TagInput";
+
 
 const LAST_STEP = 4;
 
@@ -29,7 +29,6 @@ function StepTransition({ stepKey, children }) {
 }
 
 function Signup() {
-  const navigate = useNavigate();
   const [step, setStep] = useState(2);
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({
@@ -47,13 +46,7 @@ function Signup() {
   const update = (field) => (e) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
 
-  const goBack = () => {
-    if (step === 2) {
-      navigate("/onboarding");
-    } else {
-      setStep((s) => s - 1);
-    }
-  };
+  const goBack = () => setStep((s) => s - 1);
 
   const goNext = () => setStep((s) => Math.min(s + 1, LAST_STEP));
   const handleComplete = () => setSubmitted(true);
@@ -70,10 +63,7 @@ function Signup() {
             Your account has been created successfully. Check your email to
             verify your account.
           </p>
-          <PrimaryButton
-            className="mt-8"
-            onClick={() => navigate("/dashboard")}
-          >
+          <PrimaryButton to="/home" className="mt-8">
             Go to Dashboard
           </PrimaryButton>
         </div>
@@ -179,7 +169,11 @@ function Signup() {
       </StepTransition>
 
       <div className="mt-4 flex gap-3">
-        <SecondaryButton onClick={goBack}>Back</SecondaryButton>
+        {step === 2 ? (
+          <SecondaryButton to="/onboarding">Back</SecondaryButton>
+        ) : (
+          <SecondaryButton onClick={goBack}>Back</SecondaryButton>
+        )}
         {step < LAST_STEP ? (
           <PrimaryButton className="flex-1" onClick={goNext}>
             Continue

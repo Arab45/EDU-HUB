@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { GiArchiveResearch } from "react-icons/gi";
 import { FcGraduationCap } from "react-icons/fc";
 import AuthShell from "../components/AuthShell";
-import PrimaryButton from "../components/primaryButton";
+import { PrimaryButton } from "../components/PrimaryButton";
+
 
 function RoleCard({ icon, title, description, selected, onClick }) {
   return (
@@ -24,7 +24,6 @@ function RoleCard({ icon, title, description, selected, onClick }) {
 }
 
 function Onboarding() {
-  const navigate = useNavigate();
   const [role, setRole] = useState(null);
 
   return (
@@ -56,10 +55,8 @@ function Onboarding() {
           />
         </div>
 
-        <PrimaryButton
-          disabled={!role}
-          onClick={() => navigate("/signup")}
-        >
+        {/* Link handles the actual navigation; disabled falls back to a plain button until a role is picked */}
+        <PrimaryButton to="/signup" disabled={!role}>
           Continue
         </PrimaryButton>
       </div>
