@@ -7,6 +7,7 @@ import Profile from "./pages/profile";
 import NewPost from "./pages/newPost";
 import Search from "./pages/search";
 import ForgotPassword from "./pages/forgetPassword";
+import Messages from "./pages/message";
 
 function App() {
   return (
@@ -17,6 +18,8 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/messages" element={<Messages />} />
+
 
       <Route path="/home" element={<Home />} />
       <Route path="/search" element={<Search />} />

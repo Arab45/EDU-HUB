@@ -1,10 +1,18 @@
 import { Link, useLocation } from "react-router-dom";
-import { FiHome, FiSearch, FiPlusCircle, FiUser, FiLogOut } from "react-icons/fi";
+import {
+  FiHome,
+  FiSearch,
+  FiPlusCircle,
+  FiMessageSquare,
+  FiUser,
+  FiLogOut,
+} from "react-icons/fi";
 
 const NAV_ITEMS = [
   { to: "/home", label: "Home", icon: FiHome },
   { to: "/search", label: "Search", icon: FiSearch },
   { to: "/new-post", label: "New Post", icon: FiPlusCircle },
+  { to: "/messages", label: "Messages", icon: FiMessageSquare },
   { to: "/profile", label: "Profile", icon: FiUser },
 ];
 
