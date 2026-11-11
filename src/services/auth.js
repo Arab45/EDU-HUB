@@ -1,40 +1,43 @@
-async function signup({ userData }) {
-    const response = await axios.post('/api/signup', { ...userData });
-    return response.data;
-}
+import axios from "axios";
 
-async function researcherStepOne({ userData }) {
-    const response = await axios.post('/api/researcher/step-one', { ...userData });
+export async function signUpUser(userData) {
+    const url = `${process.env.BASE_URL}/users/signup`;
+    const response = await axios.post(url, userData);
     return response.data;
-}
+  }
 
-async function researcherStepTwo({ userData }) {
-    const response = await axios.post('/api/researcher/step-two', { ...userData });
+  export async function onboardingUser(userData) {
+    const url = `${process.env.BASE_URL}/onboarding`;
+    const response = await axios.patch(url, userData);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     return response.data;
-}
+  }
 
-async function fetchUserProfile(userId) {
-    const response = await axios.get(`/api/users/${userId}`);
+  export async function lastOnboardingUser(userData) {
+    const url = `${process.env.BASE_URL}/lastonboarding`;
+    const response = await axios.patch(url, userData);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     return response.data;
-}
+  }
 
-async function login({ credentials }) {
-    const response = await axios.post('/api/login', { ...credentials });
+  export async function loginUser(credentials) {
+    const url = `${process.env.BASE_URL}/login`;
+    const response = await axios.post(url, credentials);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     return response.data;
-}
+  }
 
-async function logout() {
-    const response = await axios.post('/api/logout');
+export async function fetchData() {
+    const url = `${process.env.BASE_URL}/posts`;
+    const response = await axios.get(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     return response.data;
-}
-
-async function forgetPassword({ email }) {
-    const response = await axios.post('/api/forget-password', { email });
-    return response.data;
-}
-
-async function resetPassword({ credentials }) {
-    const response = await axios.post('/api/reset-password', { ...credentials });
-    return response.data;
-}
-
+  }

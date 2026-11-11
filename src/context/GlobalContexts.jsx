@@ -1,19 +1,14 @@
-import React, { createContext, useContext, useMemo } from "react";
+import redux from "redux";
 
-//Create the context
-const GlobalContext = createContext(undefined);
+export const GlobalContext = redux.createContext();
 
 export const GlobalProvider = ({ children }) => {
-    const value = useMemo(() => ({}), []);
-  return (
-    <GlobalContext.Provider value={value}>{children}</GlobalContext.Provider>
-  );
-};
+  const [user, setUser] = redux.useState(null);
+  const [isAuthenticated, setIsAuthenticated] = redux.useState(false);
 
-export const useGlobalContext = () => {
-  const context = useContext(GlobalContext);
-  if (!context) {
-    throw new Error("useGlobalContext must be used within a GlobalProvider");
-  }
-  return context;
+  return (
+    <GlobalContext.Provider value={{ user, setUser, isAuthenticated, setIsAuthenticated }}>
+      {children}
+    </GlobalContext.Provider>
+  );
 };
