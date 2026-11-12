@@ -2,7 +2,7 @@ import { useState } from "react";
 import { GiArchiveResearch } from "react-icons/gi";
 import { FcGraduationCap } from "react-icons/fc";
 import AuthShell from "../components/AuthShell";
-import { PrimaryButton } from "../components/PrimaryButton";
+import { PrimaryButton } from "../components/primaryButton";
 
 
 function RoleCard({ icon, title, description, selected, onClick }) {

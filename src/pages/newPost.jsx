@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiImage, FiX } from "react-icons/fi";
 import AppShell from "../components/AppShell";
-import { PrimaryButton } from "../components/PrimaryButton";
-import FormField from "../components/Form";
+import { PrimaryButton } from "../components/primaryButton";
+import FormField from "../components/form";
 
 
 function NewPost() {

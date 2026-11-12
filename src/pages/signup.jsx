@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import AuthShell from "../components/AuthShell";
-import { PrimaryButton, SecondaryButton } from "../components/PrimaryButton";
-import FormField from "../components/Form";
+import { PrimaryButton, SecondaryButton } from "../components/primaryButton";
+import FormField from "../components/form";
 import TagInputField from "../components/TagInput";
 import zod from "zod";
 import { signUpUser } from "../services/auth";

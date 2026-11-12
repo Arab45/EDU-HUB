@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
-import { PrimaryButton } from "../components/PrimaryButton";
-import FormField from "../components/Form";
+import { PrimaryButton } from "../components/primaryButton";
+import FormField from "../components/form";
 
 // Stand-in for a backend "does this email exist" check.
 const MOCK_REGISTERED_EMAILS = [

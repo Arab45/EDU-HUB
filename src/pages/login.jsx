@@ -1,9 +1,9 @@
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
-import FormField from "../components/Form";
-import { PrimaryButton } from "../components/PrimaryButton";
 import { loginUser } from "../services/auth";
 import zod from "zod";
+import FormField from "../components/form";
+import { PrimaryButton } from "../components/primaryButton";
 
 const loginSchema = zod.object({
   email: zod.string().email("Invalid email address"),
@@ -21,7 +21,7 @@ async function validateLogin(email, password) {
 
 
 function Login() {
-  
+
   const navigate = useNavigate();
 
   const handleLogin = async (event) => {
