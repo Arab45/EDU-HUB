@@ -17,6 +17,7 @@ const emptyForm = {
   email: "",
   phone: "",
   password: "",
+  confirmPassword: "",
   institution: "",
   position: "",
   bio: "",
@@ -63,7 +64,7 @@ function readSignupDraft() {
     return {
       step: result.data.step,
       form: { ...emptyForm, ...result.data.form },
-      notice: "Your progress was restored. For your security, passwords aren't saved; re-enter yours on step 2 before submitting.",
+      notice: "Your progress was restored. For your security, passwords aren't saved; re-enter and confirm yours on step 2 before submitting.",
     };
   } catch {
     // Storage may be unavailable or contain malformed JSON; recover with a clean form.
@@ -82,6 +83,7 @@ function validateForm(form) {
     email: zod.string().email("Invalid email address"),
     phone: zod.string().min(1, "Phone Number is required"),
     password: zod.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: zod.string().min(1, "Please confirm your password"),
     institution: zod.string().min(1, "Institution is required"),
     position: zod.string().min(1, "Position / Role is required"),
     bio: zod.string().optional(),
@@ -89,7 +91,23 @@ function validateForm(form) {
     researchFocus: zod.string().optional(),
   });
 
-  return schema.safeParse(form);
+  return schema.refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  }).safeParse(form);
+}
+
+function validatePasswordConfirmation(form) {
+  return zod
+    .object({
+      password: zod.string().min(6, "Password must be at least 6 characters"),
+      confirmPassword: zod.string().min(1, "Please confirm your password"),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: "Passwords do not match",
+      path: ["confirmPassword"],
+    })
+    .safeParse(form);
 }
 
 // Fades each step's content in when the step changes, instead of a hard cut.
@@ -166,21 +184,35 @@ function Signup() {
 
   // Advance no further than the final step and persist the updated location.
   const goNext = () => {
+    if (step === 2) {
+      const passwordValidation = validatePasswordConfirmation(form);
+      if (!passwordValidation.success) {
+        setSignupError(
+          passwordValidation.error.issues[0]?.message ?? "Please check your passwords."
+        );
+        return;
+      }
+    }
+
     const nextStep = Math.min(step + 1, LAST_STEP);
     setStep(nextStep);
     saveDraft(nextStep, form);
+    setSignupError("");
   };
 
   // Validate all fields, submit valid data, and show success or a recoverable error.
   const handleComplete = async () => {
     const validation = validateForm(form);
     if (!validation.success) {
-      const firstIssue = validation.error.issues[0];
-      if (firstIssue?.path[0] === "password") {
+      const passwordIssue = validation.error.issues.find(
+        (issue) => issue.path[0] === "password" || issue.path[0] === "confirmPassword"
+      );
+      if (passwordIssue) {
         // Password is intentionally excluded from the draft, so send the user back to enter it.
         setStep(2);
         saveDraft(2, form);
       }
+      const firstIssue = passwordIssue ?? validation.error.issues[0];
       setSignupError(firstIssue?.message ?? "Please check your information.");
       return;
     }
@@ -189,7 +221,9 @@ function Signup() {
     setSignupError("");
     try {
       // Wait for the server to accept the signup before showing the success screen.
-      await signUpUser(form);
+      const signupData = { ...form };
+      delete signupData.confirmPassword;
+      await signUpUser(signupData);
       setSubmitted(true);
       try {
         // The account exists now, so remove the resumable draft.
@@ -226,8 +260,8 @@ function Signup() {
               {draftError}
             </p>
           )}
-          <PrimaryButton to="/home" className="mt-8">
-            Go to Dashboard
+          <PrimaryButton to="/login" className="mt-8">
+            Go to Login
           </PrimaryButton>
         </div>
       </AuthShell>
@@ -272,6 +306,13 @@ function Signup() {
               value={form.password}
               onChange={update("password")}
               placeholder="Create a strong password"
+            />
+            <FormField
+              label="Confirm Password *"
+              type="password"
+              value={form.confirmPassword}
+              onChange={update("confirmPassword")}
+              placeholder="Re-enter your password"
             />
           </>
         )}
