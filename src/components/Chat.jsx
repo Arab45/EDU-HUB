@@ -51,7 +51,7 @@ function ChatWindow({ conversation, onSend, onBack }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4">
+      <div className="flex min-w-0 items-center gap-3 border-b border-slate-200 px-3 py-3 sm:px-5 sm:py-4">
         <button
           type="button"
           onClick={onBack}
@@ -60,18 +60,18 @@ function ChatWindow({ conversation, onSend, onBack }) {
         >
           <FiArrowLeft className="text-xl" />
         </button>
-        <Link to="/profile" className="flex items-center gap-3">
+        <Link to="/profile" className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-semibold text-emerald-800">
             {conversation.initials}
           </div>
-          <div>
-            <p className="font-semibold text-slate-900">{conversation.name}</p>
-            <p className="text-sm text-slate-500">{conversation.institution}</p>
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-slate-900">{conversation.name}</p>
+            <p className="truncate text-sm text-slate-500">{conversation.institution}</p>
           </div>
         </Link>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-white p-5">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-white p-3 sm:p-5">
         {conversation.messages.length === 0 && (
           <p className="m-auto text-slate-400">
             No messages yet. Say hello to {conversation.name.split(" ")[0]}!
@@ -83,7 +83,7 @@ function ChatWindow({ conversation, onSend, onBack }) {
         <div ref={bottomRef} />
       </div>
 
-      <div className="flex items-end gap-3 border-t border-slate-200 p-4">
+      <div className="flex items-end gap-2 border-t border-slate-200 p-3 sm:gap-3 sm:p-4">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

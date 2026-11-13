@@ -12,23 +12,23 @@ function PostCard({ post }) {
   };
 
   return (
-    <article className="mb-5 rounded-xl border border-slate-200 bg-white p-5 transition-colors duration-300 ease-in-out hover:border-slate-300">
+    <article className="mb-5 min-w-0 rounded-xl border border-slate-200 bg-white p-4 transition-colors duration-300 ease-in-out hover:border-slate-300 sm:p-5">
       <div className="mb-3 flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-semibold text-emerald-800">
           {post.authorInitials}
         </div>
-        <div>
-          <p className="font-semibold text-slate-900">{post.author}</p>
-          <p className="text-sm text-slate-500">
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-slate-900">{post.author}</p>
+          <p className="break-words text-sm text-slate-500">
             {post.institution} · {post.date}
           </p>
         </div>
       </div>
 
-      <p className="mb-1 font-serif text-lg font-bold text-slate-900">
+      <p className="mb-1 break-words font-serif text-lg font-bold text-slate-900">
         {post.title}
       </p>
-      <p className="mb-3 text-slate-600">{post.body}</p>
+      <p className="mb-3 break-words text-slate-600">{post.body}</p>
 
       {post.image && (
         <img

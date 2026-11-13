@@ -95,7 +95,7 @@ function Messages() {
 
   return (
     <AppShell maxWidth="max-w-6xl">
-      <div className="grid h-[calc(100vh-4rem)] grid-cols-1 overflow-hidden rounded-xl border border-slate-200 bg-white md:grid-cols-[320px_1fr]">
+      <div className="grid h-[calc(100dvh-9rem)] min-h-[24rem] grid-cols-1 overflow-hidden rounded-xl border border-slate-200 bg-white md:h-[calc(100vh-4rem)] md:min-h-0 md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
         <div className={showChat ? "hidden md:block" : "block"}>
           <ConversationList
             conversations={conversations}
