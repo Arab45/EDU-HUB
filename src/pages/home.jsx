@@ -3,6 +3,9 @@ import AppShell from "../components/AppShell";
 import PostCard from "../components/PostCard";
 import { PrimaryButton } from "../components/primaryButton";
 import FollowButton from "../components/FollowButton";
+import { useDispatch, useSelector } from "react-redux";
+import { loadProfile } from "../context/profileSlice";
+import { useEffect } from "react";
 
 const MOCK_POSTS = [
   {
@@ -76,10 +79,20 @@ const SUGGESTED_RESEARCHERS = [
 ];
 
 function Home() {
+  const dispatch = useDispatch();
+  const { userId, data: profile, status, error } = useSelector((state) => state.profile);
+
+
+    useEffect(() => {
+      if (userId && status === "idle") {
+        dispatch(loadProfile(userId));
+      }
+    }, [dispatch, userId, status]);
+
   return (
     <AppShell maxWidth="max-w-6xl">
       <div className="mb-6 rounded-xl bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 p-6 text-white">
-        <p className="font-serif text-2xl font-bold">Welcome back, Jane</p>
+        <p className="font-serif text-2xl font-bold">Welcome back, {profile?.name.split(" ")[0] || "Researcher"}</p>
         <p className="mt-1 text-white/80">
           Here's what's new from the researchers you follow
         </p>

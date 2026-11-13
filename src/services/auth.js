@@ -40,3 +40,8 @@ export async function fetchData() {
   const response = await api.get("/posts");
   return response.data;
 }
+
+export async function fetchProfile(userId) {
+  const response = await api.get(`/users/profile/${userId}`);
+  return response.data;
+}
