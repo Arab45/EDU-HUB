@@ -4,7 +4,11 @@ import { PrimaryButton, SecondaryButton } from "../components/primaryButton";
 import FormField from "../components/form";
 import TagInputField from "../components/TagInput";
 import zod from "zod";
-import { signUpUser } from "../services/auth";
+import {
+  saveAcademicStep,
+  saveResearchStep,
+  signUpUser,
+} from "../services/auth";
 
 
 const LAST_STEP = 4;
@@ -15,7 +19,6 @@ const SIGNUP_DRAFT_KEY = "researchhub-signup-draft";
 const emptyForm = {
   fullName: "",
   email: "",
-  phone: "",
   password: "",
   confirmPassword: "",
   institution: "",
@@ -28,10 +31,15 @@ const emptyForm = {
 // Validate stored data before using it, since browser storage can be stale or edited.
 const signupDraftSchema = zod.object({
   step: zod.number().int().min(2).max(LAST_STEP),
+  signupProgress: zod.object({
+    accountCreated: zod.boolean().optional(),
+    userId: zod.string().nullable().optional(),
+    academicSaved: zod.boolean().optional(),
+    researchSaved: zod.boolean().optional(),
+  }).optional(),
   form: zod.object({
     fullName: zod.string(),
     email: zod.string(),
-    phone: zod.string(),
     institution: zod.string(),
     position: zod.string(),
     bio: zod.string(),
@@ -45,7 +53,17 @@ function readSignupDraft() {
     // Load the draft from this tab; no saved draft means a clean start.
     const savedDraft = sessionStorage.getItem(SIGNUP_DRAFT_KEY);
     if (!savedDraft) {
-      return { step: 2, form: emptyForm, notice: "" };
+      return {
+        step: 2,
+        form: emptyForm,
+        signupProgress: {
+          accountCreated: false,
+          userId: null,
+          academicSaved: false,
+          researchSaved: false,
+        },
+        notice: "",
+      };
     }
 
     // Parse and validate the stored JSON before restoring it into React state.
@@ -56,6 +74,12 @@ function readSignupDraft() {
       return {
         step: 2,
         form: emptyForm,
+        signupProgress: {
+          accountCreated: false,
+          userId: null,
+          academicSaved: false,
+          researchSaved: false,
+        },
         notice: "Your saved signup draft could not be restored. Please start again.",
       };
     }
@@ -64,50 +88,66 @@ function readSignupDraft() {
     return {
       step: result.data.step,
       form: { ...emptyForm, ...result.data.form },
-      notice: "Your progress was restored. For your security, passwords aren't saved; re-enter and confirm yours on step 2 before submitting.",
+      signupProgress: {
+        accountCreated: result.data.signupProgress?.accountCreated ?? false,
+        userId: result.data.signupProgress?.userId ?? null,
+        academicSaved: result.data.signupProgress?.academicSaved ?? false,
+        researchSaved: result.data.signupProgress?.researchSaved ?? false,
+      },
+      notice: result.data.signupProgress?.accountCreated
+        ? "Your onboarding progress was restored."
+        : "Your progress was restored. For your security, passwords aren't saved; re-enter and confirm yours on step 2 before submitting.",
     };
   } catch {
     // Storage may be unavailable or contain malformed JSON; recover with a clean form.
     return {
       step: 2,
       form: emptyForm,
+      signupProgress: {
+        accountCreated: false,
+        userId: null,
+        academicSaved: false,
+        researchSaved: false,
+      },
       notice: "Your signup progress could not be read from this browser session.",
     };
   }
 }
 
-function validateForm(form) {
-  // Apply the signup requirements to all fields together before making the API call.
-  const schema = zod.object({
+function validateAccountStep(form) {
+  // Match account validation to the fields accepted by SignupDto.
+  return zod.object({
     fullName: zod.string().min(1, "Full Name is required"),
     email: zod.string().email("Invalid email address"),
-    phone: zod.string().min(1, "Phone Number is required"),
-    password: zod.string().min(6, "Password must be at least 6 characters"),
+    password: zod.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: zod.string().min(1, "Please confirm your password"),
-    institution: zod.string().min(1, "Institution is required"),
-    position: zod.string().min(1, "Position / Role is required"),
-    bio: zod.string().optional(),
-    interests: zod.array(zod.string().min(1, "Interest is required")),
-    researchFocus: zod.string().optional(),
-  });
-
-  return schema.refine((data) => data.password === data.confirmPassword, {
+  }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
   }).safeParse(form);
 }
 
-function validatePasswordConfirmation(form) {
-  return zod
-    .object({
-      password: zod.string().min(6, "Password must be at least 6 characters"),
-      confirmPassword: zod.string().min(1, "Please confirm your password"),
-    })
-    .refine((data) => data.password === data.confirmPassword, {
-      message: "Passwords do not match",
-      path: ["confirmPassword"],
-    })
-    .safeParse(form);
+function validateAcademicStep(form) {
+  // Match required values to AcademicStepDto.
+  return zod.object({
+    position: zod.string().min(1, "Field of study is required"),
+    institution: zod.string().min(1, "Institution is required"),
+    bio: zod.string().min(1, "Bio is required"),
+  }).safeParse(form);
+}
+
+function validateResearchStep(form) {
+  // Match required values to ResearchStepDto.
+  return zod.object({
+    interests: zod.array(zod.string().min(1, "Interest is required")).min(1, "At least one interest is required"),
+    researchFocus: zod.string().min(1, "Research focus is required"),
+  }).safeParse(form);
+}
+
+function getRequestErrorMessage(error, fallback) {
+  // Nest may return one validation message or an array of messages.
+  const message = error.response?.data?.message ?? error.response?.data?.error;
+  return Array.isArray(message) ? message.join(" ") : message || error.message || fallback;
 }
 
 // Fades each step's content in when the step changes, instead of a hard cut.
@@ -143,13 +183,13 @@ function Signup() {
   const [draftNotice] = useState(initialDraft.notice);
   const [draftError, setDraftError] = useState("");
   const [form, setForm] = useState(initialDraft.form);
+  const [signupProgress, setSignupProgress] = useState(initialDraft.signupProgress);
 
   // Store only non-sensitive fields so progress survives a refresh without saving a password.
-  const saveDraft = (nextStep, nextForm) => {
+  const saveDraft = (nextStep, nextForm, nextSignupProgress = signupProgress) => {
     const savedForm = {
       fullName: nextForm.fullName,
       email: nextForm.email,
-      phone: nextForm.phone,
       institution: nextForm.institution,
       position: nextForm.position,
       bio: nextForm.bio,
@@ -159,7 +199,11 @@ function Signup() {
     try {
       sessionStorage.setItem(
         SIGNUP_DRAFT_KEY,
-        JSON.stringify({ step: nextStep, form: savedForm })
+        JSON.stringify({
+          step: nextStep,
+          form: savedForm,
+          signupProgress: nextSignupProgress,
+        })
       );
       setDraftError("");
     } catch {
@@ -182,61 +226,111 @@ function Signup() {
     saveDraft(previousStep, form);
   };
 
-  // Advance no further than the final step and persist the updated location.
-  const goNext = () => {
-    if (step === 2) {
-      const passwordValidation = validatePasswordConfirmation(form);
-      if (!passwordValidation.success) {
-        setSignupError(
-          passwordValidation.error.issues[0]?.message ?? "Please check your passwords."
-        );
-        return;
-      }
-    }
-
-    const nextStep = Math.min(step + 1, LAST_STEP);
-    setStep(nextStep);
-    saveDraft(nextStep, form);
-    setSignupError("");
-  };
-
-  // Validate all fields, submit valid data, and show success or a recoverable error.
-  const handleComplete = async () => {
-    const validation = validateForm(form);
-    if (!validation.success) {
-      const passwordIssue = validation.error.issues.find(
-        (issue) => issue.path[0] === "password" || issue.path[0] === "confirmPassword"
-      );
-      if (passwordIssue) {
-        // Password is intentionally excluded from the draft, so send the user back to enter it.
-        setStep(2);
-        saveDraft(2, form);
-      }
-      const firstIssue = passwordIssue ?? validation.error.issues[0];
-      setSignupError(firstIssue?.message ?? "Please check your information.");
+  // Save account and academic data to the database before moving forward.
+  const goNext = async () => {
+    const validation = step === 2 && !signupProgress.accountCreated
+      ? validateAccountStep(form)
+      : step === 3
+        ? validateAcademicStep(form)
+        : null;
+    if (validation && !validation.success) {
+      setSignupError(validation.error.issues[0]?.message ?? "Please check your information.");
       return;
     }
 
     setIsSubmitting(true);
     setSignupError("");
     try {
-      // Wait for the server to accept the signup before showing the success screen.
-      const signupData = { ...form };
-      delete signupData.confirmPassword;
-      await signUpUser(signupData);
+      let progress = signupProgress;
+
+      if (step === 2 && !progress.accountCreated) {
+        // Create the account with only fields accepted by SignupDto.
+        const signupResult = await signUpUser({
+          fullName: form.fullName,
+          email: form.email,
+          password: form.password,
+        });
+        const userId = signupResult?.data?.userId;
+        if (typeof userId !== "string" || !userId) {
+          throw new Error("Signup did not return data.userId, so onboarding cannot continue.");
+        }
+
+        progress = {
+          accountCreated: true,
+          userId,
+          academicSaved: false,
+          researchSaved: false,
+        };
+        setSignupProgress(progress);
+        setForm((currentForm) => ({
+          ...currentForm,
+          password: "",
+          confirmPassword: "",
+        }));
+      }
+
+      if (step === 3 && !progress.accountCreated) {
+        throw new Error("Create your account before saving academic details.");
+      }
+
+      if (step === 3 && !progress.academicSaved) {
+        // Translate UI names to the AcademicStepDto property names.
+        await saveAcademicStep(progress.userId, {
+          fieldOfStudy: form.position,
+          institution: form.institution,
+          bio: form.bio,
+        });
+        progress = { ...progress, academicSaved: true };
+        setSignupProgress(progress);
+      }
+
+      const nextStep = Math.min(step + 1, LAST_STEP);
+      setStep(nextStep);
+      saveDraft(nextStep, form, progress);
+    } catch (error) {
+      // Keep the current step open so the user can retry a failed API request.
+      setSignupError(getRequestErrorMessage(error, "Unable to save this signup step."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Save research data to the database and finish signup after all steps succeed.
+  const handleComplete = async () => {
+    const validation = validateResearchStep(form);
+    if (!validation.success) {
+      setSignupError(validation.error.issues[0]?.message ?? "Please check your research details.");
+      return;
+    }
+    if (!signupProgress.accountCreated || !signupProgress.academicSaved) {
+      setSignupError("Finish the previous signup steps before saving research details.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSignupError("");
+    try {
+      if (!signupProgress.researchSaved) {
+        // Translate UI names to the ResearchStepDto property names.
+        await saveResearchStep(signupProgress.userId, {
+          areaOfInterest: form.interests,
+          briefResearchFocus: form.researchFocus,
+        });
+        const progress = { ...signupProgress, researchSaved: true };
+        setSignupProgress(progress);
+        saveDraft(step, form, progress);
+      }
+
       setSubmitted(true);
       try {
-        // The account exists now, so remove the resumable draft.
+        // Clear the draft only after all account and onboarding requests succeed.
         sessionStorage.removeItem(SIGNUP_DRAFT_KEY);
       } catch {
-        // Do not undo a successful signup if browser storage cannot be cleared.
         setDraftError("Your account was created, but the saved signup draft could not be cleared.");
       }
     } catch (error) {
-      // Keep the draft intact and display the request failure so the user can retry.
-      setSignupError(
-        error instanceof Error ? error.message : "Unable to create your account. Please try again."
-      );
+      // Leave the research step open so the request can be retried.
+      setSignupError(getRequestErrorMessage(error, "Unable to save your research details."));
     } finally {
       setIsSubmitting(false);
     }
@@ -284,6 +378,7 @@ function Signup() {
               label="Full Name *"
               value={form.fullName}
               onChange={update("fullName")}
+              disabled={signupProgress.accountCreated}
               placeholder="Jane Smith"
             />
             <FormField
@@ -291,20 +386,15 @@ function Signup() {
               type="email"
               value={form.email}
               onChange={update("email")}
+              disabled={signupProgress.accountCreated}
               placeholder="jane.smith@university.edu"
-            />
-            <FormField
-              label="Phone Number *"
-              type="tel"
-              value={form.phone}
-              onChange={update("phone")}
-              placeholder="123-456-7890"
             />
             <FormField
               label="Password *"
               type="password"
               value={form.password}
               onChange={update("password")}
+              disabled={signupProgress.accountCreated}
               placeholder="Create a strong password"
             />
             <FormField
@@ -312,6 +402,7 @@ function Signup() {
               type="password"
               value={form.confirmPassword}
               onChange={update("confirmPassword")}
+              disabled={signupProgress.accountCreated}
               placeholder="Re-enter your password"
             />
           </>
@@ -332,13 +423,13 @@ function Signup() {
               placeholder="University of Lagos"
             />
             <FormField
-              label="Position / Role *"
+              label="Field of Study *"
               value={form.position}
               onChange={update("position")}
               placeholder="PhD Candidate, Postdoc, Professor..."
             />
             <FormField
-              label="Short Bio"
+              label="Short Bio *"
               textarea
               value={form.bio}
               onChange={update("bio")}
@@ -369,7 +460,7 @@ function Signup() {
               placeholder="Type and press Enter..."
             />
             <FormField
-              label="Brief Research Focus"
+              label="Brief Research Focus *"
               textarea
               value={form.researchFocus}
               onChange={update("researchFocus")}
@@ -404,8 +495,8 @@ function Signup() {
           <SecondaryButton onClick={goBack}>Back</SecondaryButton>
         )}
         {step < LAST_STEP ? (
-          <PrimaryButton className="flex-1" onClick={goNext}>
-            Continue
+          <PrimaryButton className="flex-1" onClick={goNext} disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Continue"}
           </PrimaryButton>
         ) : (
           <PrimaryButton className="flex-1" onClick={handleComplete} disabled={isSubmitting}>

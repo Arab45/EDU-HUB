@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import { loginUser } from "../services/auth";
@@ -6,12 +7,13 @@ import FormField from "../components/form";
 import { PrimaryButton } from "../components/primaryButton";
 import { useDispatch } from "react-redux";
 import { profileUserIdSet } from "../context/profileSlice";
+import { saveAuthSession } from "../services/authSession";
 
 const loginSchema = zod.object({
   // Require a valid email address before sending credentials to the server.
   email: zod.string().email("Invalid email address"),
   // Apply the minimum password length used by this app's login form.
-  password: zod.string().min(6, "Password must be at least 6 characters")
+  password: zod.string().min(8, "Password must be at least 8 characters")
 });
 
 // Validate the submitted values and surface validation failures to the form handler.
@@ -32,6 +34,8 @@ function Login() {
   const navigate = useNavigate();
   // Get Redux dispatch to save the authenticated user's ID globally.
   const dispatch = useDispatch();
+  const [loginError, setLoginError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Handle form submission, authenticate the user, and route them into the app.
   const handleLogin = async (event) => {
@@ -43,11 +47,16 @@ function Login() {
     const email = formData.get("email");
     const password = formData.get("password");
 
+    setLoginError("");
+    setIsSubmitting(true);
     try {
       // Reject malformed credentials before making a network request.
       await validateLogin(email, password);
       // Authenticate with the backend and capture its response.
       const loginResult = await loginUser({ email, password });
+      if (loginResult?.success === false) {
+        throw new Error(loginResult.message || "Invalid email or password.");
+      }
       // Require a user ID because the profile page needs it to load the account profile.
       if (typeof loginResult?.tokens?.userId !== "string" || !loginResult.tokens.userId) {
         throw new Error("Login response did not include a userId.");
@@ -55,17 +64,30 @@ function Login() {
       // Save the current user's ID in Redux so other pages can use it.
       dispatch(profileUserIdSet(loginResult.tokens.userId));
       try {
-        // Keep the non-secret user ID across a browser refresh in this tab.
-        sessionStorage.setItem("researchhub-user-id", loginResult.tokens.userId);
+        // Keep the user ID and one-hour expiry in this tab, without persisting credentials.
+        saveAuthSession(loginResult.tokens.userId);
       } catch {
         // Login can still proceed when browser storage is unavailable.
-        console.warn("Could not save the user ID for profile loading after refresh.");
+        console.warn("Could not save the session for expiry tracking after refresh.");
       }
       // Navigate only after credentials and the required user ID are confirmed.
       navigate("/home");
     } catch (error) {
-      // Report validation, network, or unexpected response failures for debugging.
       console.error("Login failed:", error);
+      const serverMessage = error.response?.data?.message;
+      const errorMessage =
+        error.response?.status === 401
+          ? "Invalid email or password."
+          : error.response?.data?.error || error.message;
+      setLoginError(
+        Array.isArray(serverMessage)
+          ? serverMessage.join(" ")
+          : serverMessage ||
+            errorMessage ||
+            "Unable to sign in. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -80,6 +102,7 @@ function Login() {
           label="Email"
           type="email"
           name="email"
+          onChange={() => setLoginError("")}
           placeholder="jane.smith@university.edu"
         />
 
@@ -87,8 +110,15 @@ function Login() {
           label="Password"
           type="password"
           name="password"
+          onChange={() => setLoginError("")}
           placeholder="******"
         />
+
+        {loginError && (
+          <p role="alert" className="mb-4 text-sm text-red-600">
+            {loginError}
+          </p>
+        )}
 
         <div className="-mt-3 mb-4 text-right">
           <Link
@@ -102,8 +132,9 @@ function Login() {
         <PrimaryButton
           type="submit"
           className="mt-2 w-full"
+          disabled={isSubmitting}
         >
-          Sign In
+          {isSubmitting ? "Signing in..." : "Sign In"}
         </PrimaryButton>
       </form>
 

@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { startSessionExpiryTimer } from "./services/authSession";
 import Login from "./pages/login";
 import Signup from "./pages/signup";
 import Onboarding from "./pages/onboarding";
@@ -10,6 +12,8 @@ import ForgotPassword from "./pages/forgetPassword";
 import Messages from "./pages/message";
 
 function App() {
+  useEffect(() => startSessionExpiryTimer(), []);
+
   return (
     <BrowserRouter>
       <Routes>
@@ -25,6 +29,7 @@ function App() {
       <Route path="/search" element={<Search />} />
       <Route path="/new-post" element={<NewPost />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/profile/:userId" element={<Profile />} />
       </Routes>
     </BrowserRouter>
   );

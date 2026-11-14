@@ -1,4 +1,8 @@
 import axios from "axios";
+import {
+  expireAuthSession,
+  isAuthSessionExpired,
+} from "./authSession";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -14,6 +18,26 @@ const api = axios.create({
   },
 });
 
+api.interceptors.request.use((config) => {
+  const isLoginRequest = config.url?.includes("/auth/login");
+  if (!isLoginRequest && isAuthSessionExpired()) {
+    expireAuthSession();
+    return Promise.reject(new Error("Your session has expired. Please sign in again."));
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const isLoginRequest = error.config?.url?.includes("/auth/login");
+    if (error.response?.status === 401 && !isLoginRequest) {
+      expireAuthSession();
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
 
 export async function signUpUser(userData) {
@@ -21,13 +45,19 @@ export async function signUpUser(userData) {
   return response.data;
 }
 
-export async function onboardingUser(userData) {
-  const response = await api.patch("/users/onboarding", userData);
+export async function saveResearchStep(userId, researchData) {
+  const response = await api.patch(
+    `/users/onboarding/research/${userId}`,
+    researchData
+  );
   return response.data;
 }
 
-export async function lastOnboardingUser(userData) {
-  const response = await api.patch("/users/lastonboarding", userData);
+export async function saveAcademicStep(userId, academicData) {
+  const response = await api.patch(
+    `/users/onboarding/academic/${userId}`,
+    academicData
+  );
   return response.data;
 }
 
@@ -43,5 +73,10 @@ export async function fetchData() {
 
 export async function fetchProfile(userId) {
   const response = await api.get(`/users/profile/${userId}`);
+  return response.data;
+}
+
+export async function fetchAllUsers() {
+  const response = await api.get("/users/fetch-all");
   return response.data;
 }

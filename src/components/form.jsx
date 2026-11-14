@@ -9,6 +9,8 @@ function FormField({
   onChange,
   placeholder,
   textarea = false,
+  disabled = false,
+  maxLength,
 }) {
   const sharedClasses =
     "w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 placeholder:text-slate-400 transition-colors duration-300 ease-in-out focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-100";
@@ -26,8 +28,10 @@ function FormField({
           value={value}
           onChange={onChange}
           placeholder={placeholder}
+          disabled={disabled}
+          maxLength={maxLength}
           rows={3}
-          className={`${sharedClasses} resize-none`}
+          className={`${sharedClasses} resize-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500`}
         />
       ) : (
         <div className={isPassword ? "relative w-full" : undefined}>
@@ -38,7 +42,8 @@ function FormField({
             value={value}
             onChange={onChange}
             placeholder={placeholder}
-            className={`${sharedClasses} ${isPassword ? "pr-20" : ""}`}
+            disabled={disabled}
+            className={`${sharedClasses} ${isPassword ? "pr-20" : ""} disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500`}
           />
           {isPassword && (
             <button

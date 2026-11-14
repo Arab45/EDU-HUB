@@ -1,9 +1,12 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"; // Import helpers for async requests and Redux state.
 import { fetchProfile } from "../services/auth"; // Reuse the profile endpoint already defined in the auth service.
+import { USER_ID_STORAGE_KEY, isAuthSessionExpired } from "../services/authSession";
 
 function getStoredUserId() { // Restore the non-secret user ID after a browser refresh.
   try { // Read browser session storage when it is available.
-    return sessionStorage.getItem("researchhub-user-id"); // Return the ID saved after login.
+    return isAuthSessionExpired()
+      ? null
+      : sessionStorage.getItem(USER_ID_STORAGE_KEY); // Return the ID saved after login if its session is still valid.
   } catch { // Handle browsers or environments where session storage is disabled.
     return null; // Let the app show its missing-user-ID state instead of crashing.
   } // Finish reading the stored ID.
