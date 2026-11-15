@@ -10,8 +10,20 @@ async function createBlogPost(postData) {
 }
 
 async function getBlogPosts() {
-  const response = await api.get("/posts");
+  const response = await api.get("/posts/");
   return response.data;
+}
+
+function getBlogPostId(post) {
+  const blog = post?.post ?? post?.blog ?? post?.data?.post ?? post;
+  const id =
+    blog?._id ??
+    blog?.id ??
+    blog?.postId ??
+    blog?.blogId ??
+    post?.postId ??
+    post?.blogId;
+  return id == null ? null : String(id);
 }
 
 async function getBlogPostById(postId) {
@@ -56,9 +68,37 @@ async function getFollowing(userId) {
   return response.data;
 }
 
+//Like / comment
+async function likePost(postId) {
+  const response = await api.post(`/posts/blog/${postId}/likes`);
+  return response.data;
+}
+
+async function unlikePost(postId) {
+  const response = await api.delete(`/posts/blog/${postId}/likes`);
+  return response.data;
+}
+
+async function getLikes(postId) {
+  const response = await api.get(`/posts/blog/${postId}/likes`);
+  return response.data;
+}
+
+async function commentOnPost(postId, commentData) {
+  const response = await api.post(`/posts/blog/${postId}/comments`, commentData);
+  return response.data;
+}
+
+async function getComments(postId) {
+  const response = await api.get(`/posts/blog/${postId}/comments`);
+  return response.data;
+}
+
+
 export {
   createBlogPost,
   getBlogPosts,
+  getBlogPostId,
   getBlogPostById,
   updateBlogPost,
   deleteBlogPost,
@@ -67,4 +107,9 @@ export {
   fetchAllFollows,
   getFollowers,
   getFollowing,
+  likePost,
+  unlikePost,
+  getLikes,
+  commentOnPost,
+  getComments,
 };

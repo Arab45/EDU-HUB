@@ -3,11 +3,12 @@ import AppShell from "../components/AppShell";
 import PostCard from "../components/PostCard";
 import { PrimaryButton } from "../components/primaryButton";
 import FollowButton from "../components/FollowButton";
+import StartChatButton from "../components/StartChatButton";
 import { useDispatch, useSelector } from "react-redux";
 import { loadProfile } from "../context/profileSlice";
 import { useEffect, useMemo, useState } from "react";
 import { fetchAllUsers } from "../services/auth";
-import { getBlogPosts } from "../services/social";
+import { getBlogPostId, getBlogPosts } from "../services/social";
 import {
   followingStatusChanged,
   loadFollowing,
@@ -142,8 +143,8 @@ function Home() {
               No posts yet. Share the first research update.
             </p>
           )}
-          {posts.map((post) => (
-            <PostCard key={post._id ?? post.id} post={post} />
+          {posts.map((post, index) => (
+            <PostCard key={getBlogPostId(post) ?? index} post={post} />
           ))}
         </div>
 
@@ -198,22 +199,29 @@ function Home() {
                       </p>
                     </div>
                   </Link>
-                  <FollowButton
-                    size="sm"
-                    currentUserId={userId}
-                    targetId={id}
-                    isFollowing={following.userId === String(userId) && following.ids.includes(id)}
-                    disabled={following.userId !== String(userId) || following.status !== "loaded"}
-                    onFollowingChange={(nowFollowing) =>
-                      dispatch(
-                        followingStatusChanged({
-                          userId,
-                          targetId: id,
-                          isFollowing: nowFollowing,
-                        })
-                      )
-                    }
-                  />
+                  <div className="flex shrink-0 gap-1">
+                    <FollowButton
+                      size="sm"
+                      currentUserId={userId}
+                      targetId={id}
+                      isFollowing={following.userId === String(userId) && following.ids.includes(id)}
+                      disabled={following.userId !== String(userId) || following.status !== "loaded"}
+                      onFollowingChange={(nowFollowing) =>
+                        dispatch(
+                          followingStatusChanged({
+                            userId,
+                            targetId: id,
+                            isFollowing: nowFollowing,
+                          })
+                        )
+                      }
+                    />
+                    <StartChatButton
+                      className="lg:hidden"
+                      currentUserId={userId}
+                      user={{ id, name, institution: getUserInstitution(user) }}
+                    />
+                  </div>
                 </div>
                 );
               })}

@@ -10,6 +10,7 @@ import {
   followingStatusChanged,
   loadFollowing,
 } from "../context/followingSlice";
+import { getBlogPostId } from "../services/social";
 
 function Profile() {
   const dispatch = useDispatch();
@@ -177,7 +178,9 @@ function Profile() {
 
       <p className="mb-3 font-serif text-lg font-bold text-slate-900">Posts</p>
       {posts.length > 0 ? (
-        posts.map((post) => <PostCard key={post._id ?? post.id} post={post} />)
+        posts.map((post, index) => (
+          <PostCard key={getBlogPostId(post) ?? index} post={post} />
+        ))
       ) : (
         <p className="text-slate-500">No posts are available on this profile.</p>
       )}
