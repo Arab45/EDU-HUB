@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import ConversationList from "../components/CoversationList";
 import ChatWindow from "../components/Chat";
 import AppShell from "../components/AppShell";
+import { fetchAllUsers, fetchProfile } from "../services/auth";
 import {
   getChats,
   getChatById,
@@ -29,6 +30,36 @@ function getId(value) {
 function getName(user) {
   if (typeof user === "string") return user;
   return user?.fullName ?? user?.name ?? user?.username ?? "Researcher";
+}
+
+function getProfileData(response) {
+  let value =
+    response?.profile ??
+    response?.user ??
+    response?.data?.profile ??
+    response?.data?.user ??
+    response?.data ??
+    response;
+  while (value && typeof value === "object" && !Array.isArray(value)) {
+    const nested =
+      value.profile ??
+      value.user ??
+      value.data ??
+      value.result;
+    if (!nested || nested === value) break;
+    value = nested;
+  }
+  return value;
+}
+
+function getUserPictureFromResponse(response) {
+  const profile = getProfileData(response);
+  return (
+    getProfilePictureUrl(profile) ||
+    getProfilePictureUrl(profile?.profile) ||
+    getProfilePictureUrl(profile?.user) ||
+    ""
+  );
 }
 
 function normalizeMessage(message, currentUserId) {
@@ -68,6 +99,8 @@ function normalizeChat(chat, currentUserId, fallbackRecipient) {
     participants.find((participant) => String(getId(participant)) !== String(currentUserId)) ??
     chat.target ??
     chat.recipient ??
+    chat.otherUser ??
+    chat.otherParticipant ??
     fallbackRecipient ??
     {};
   const name = getName(recipient);
@@ -80,11 +113,16 @@ function normalizeChat(chat, currentUserId, fallbackRecipient) {
     .toUpperCase();
   return {
     id: String(chat.chatId ?? chat._id ?? chat.id),
-    recipientId: getId(recipient),
+    recipientId:
+      getId(recipient) ??
+      getId(chat.recipientId ?? chat.otherUserId ?? chat.targetId),
     name,
     initials,
     profilePicture:
-      getProfilePictureUrl(recipient) || getProfilePictureUrl(fallbackRecipient),
+      getProfilePictureUrl(recipient) ||
+      getProfilePictureUrl(chat.otherUser) ||
+      getProfilePictureUrl(chat.otherParticipant) ||
+      getProfilePictureUrl(fallbackRecipient),
     institution:
       recipient.institution ?? recipient.academic?.institution ?? "",
     unread: chat.unreadCount ?? chat.unread ?? 0,
@@ -101,6 +139,7 @@ function Messages() {
   const [activeId, setActiveId] = useState("");
   const [loadingChats, setLoadingChats] = useState(true);
   const [chatsError, setChatsError] = useState("");
+  const [profilePictureWarning, setProfilePictureWarning] = useState("");
   const [loadedMessagesId, setLoadedMessagesId] = useState("");
   const [sending, setSending] = useState(false);
   const [messageError, setMessageError] = useState("");
@@ -116,7 +155,7 @@ function Messages() {
     getChats(currentUserId)
       .then(async (response) => {
         if (!active) return;
-        const loaded = extractList(response, ["chats", "items"]).map((chat) =>
+        let loaded = extractList(response, ["chats", "items"]).map((chat) =>
           normalizeChat(chat, currentUserId, locationRecipient)
         );
         if (
@@ -143,7 +182,60 @@ function Messages() {
             }
           }
         }
+
+        const pictureResults = await Promise.allSettled([
+          fetchAllUsers(),
+          ...loaded
+            .filter(
+              (conversation) =>
+                conversation.recipientId && !conversation.profilePicture
+            )
+            .map((conversation) =>
+              fetchProfile(conversation.recipientId).then((response) => ({
+                conversationId: conversation.id,
+                picture: getUserPictureFromResponse(response),
+              }))
+            ),
+        ]);
+        const directoryResult = pictureResults[0];
+        const directoryUsers =
+          directoryResult.status === "fulfilled"
+            ? extractList(directoryResult.value, ["users", "items"])
+            : [];
+        const directoryPictures = new Map(
+          directoryUsers
+            .map((user) => [String(getId(user) ?? ""), getProfilePictureUrl(user)])
+            .filter(([id, picture]) => id && picture)
+        );
+        const profilePictures = pictureResults
+          .slice(1)
+          .filter((result) => result.status === "fulfilled")
+          .map((result) => result.value)
+          .filter((result) => result.picture);
+        const picturesByConversation = new Map(
+          profilePictures.map(({ conversationId, picture }) => [
+            conversationId,
+            picture,
+          ])
+        );
+        loaded = loaded.map((conversation) => ({
+          ...conversation,
+          profilePicture:
+            conversation.profilePicture ||
+            picturesByConversation.get(conversation.id) ||
+            directoryPictures.get(String(conversation.recipientId)) ||
+            "",
+        }));
+
         if (active) {
+          const conversationsWithoutPicture = loaded.filter(
+            (conversation) => !conversation.profilePicture
+          ).length;
+          setProfilePictureWarning(
+            conversationsWithoutPicture > 0
+              ? "The server did not provide profile pictures for some chat participants."
+              : ""
+          );
           setConversations(loaded);
           const nextActiveId = locationChatId
             ? String(locationChatId)
@@ -265,6 +357,9 @@ function Messages() {
         </p>
       )}
       {chatsError && <p role="alert" className="mb-3 text-sm text-red-600">{chatsError}</p>}
+      {profilePictureWarning && (
+        <p className="mb-3 text-sm text-slate-600">{profilePictureWarning}</p>
+      )}
       {currentUserId && loadingChats ? (
         <p role="status" className="mb-3 text-slate-500">Loading conversations...</p>
       ) : (
