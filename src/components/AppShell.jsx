@@ -20,7 +20,7 @@ function AppShell({ children, maxWidth = "max-w-3xl" }) {
   const location = useLocation();
 
   return (
-    <div className="min-h-screen w-full md:flex">
+    <div className="app-page-background min-h-screen w-full md:flex">
       <aside className="hidden w-64 shrink-0 flex-col justify-between bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 p-6 text-white md:flex">
         <div>
           <p className="mb-10 font-serif text-2xl font-bold">ResearchHub</p>
@@ -58,7 +58,7 @@ function AppShell({ children, maxWidth = "max-w-3xl" }) {
         <p className="font-serif text-xl font-bold">ResearchHub</p>
       </header>
 
-      <main className="min-w-0 bg-slate-50 p-4 pb-24 sm:p-6 sm:pb-24 md:flex-1 md:p-8">
+      <main className="min-w-0 bg-white/65 p-4 pb-24 sm:p-6 sm:pb-24 md:flex-1 md:p-8">
         <div className={`mx-auto w-full min-w-0 ${maxWidth}`}>{children}</div>
       </main>
 

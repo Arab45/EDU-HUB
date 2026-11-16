@@ -8,3 +8,24 @@
   --color-pedro: #ff00ccff;
 
 }
+
+.academic-page-background {
+  background-image:
+    linear-gradient(rgb(15 23 42 / 42%), rgb(15 23 42 / 42%)),
+    url("../../assets/academic-background.jpg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+.app-page-background {
+  background-color: #f8fafc;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 68%), rgb(255 255 255 / 68%)),
+    url("../../assets/app-academic-background.jpg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+}
