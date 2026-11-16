@@ -13,6 +13,7 @@ import {
   followingStatusChanged,
   loadFollowing,
 } from "../context/followingSlice";
+import { getProfilePictureUrl } from "../utils/profilePicture";
 
 function extractList(response, keys) {
   if (Array.isArray(response)) return response;
@@ -239,7 +240,12 @@ function Home() {
                     <StartChatButton
                       className="lg:hidden"
                       currentUserId={userId}
-                      user={{ id, name, institution: getUserInstitution(user) }}
+                      user={{
+                        id,
+                        name,
+                        institution: getUserInstitution(user),
+                        profilePicture: getProfilePictureUrl(user),
+                      }}
                     />
                   </div>
                 </div>

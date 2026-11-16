@@ -94,6 +94,13 @@ async function getComments(postId) {
   return response.data;
 }
 
+async function search(query, page = 1, limit = 20) {
+  const response = await api.get("/social/search", {
+    params: { q: query, page, limit },
+  });
+  return response.data;
+}
+
 
 export {
   createBlogPost,
@@ -112,4 +119,5 @@ export {
   getLikes,
   commentOnPost,
   getComments,
+  search
 };

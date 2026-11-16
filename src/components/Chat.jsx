@@ -142,7 +142,15 @@ function ChatWindow({
           className="flex min-w-0 items-center gap-3"
         >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-semibold text-emerald-800">
-            {conversation.initials}
+            {conversation.profilePicture ? (
+              <img
+                src={conversation.profilePicture}
+                alt={`${conversation.name}'s profile`}
+                className="h-full w-full rounded-full object-cover"
+              />
+            ) : (
+              conversation.initials
+            )}
           </div>
           <div className="min-w-0">
             <p className="truncate font-semibold text-slate-900">{conversation.name}</p>
@@ -153,7 +161,7 @@ function ChatWindow({
 
       <div
         ref={messagesContainerRef}
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto overscroll-contain bg-white p-3 sm:p-5"
+        className="scrollbar-hidden flex min-h-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto overscroll-contain bg-white p-3 sm:p-5"
       >
         {loadingMessages && (
           <p role="status" className="text-center text-sm text-slate-500">

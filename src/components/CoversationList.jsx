@@ -25,7 +25,7 @@ function ConversationList({ conversations, activeId, onSelect }) {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {filtered.length === 0 && (
           <p className="p-4 text-sm text-slate-400">No conversations found.</p>
         )}
@@ -42,7 +42,15 @@ function ConversationList({ conversations, activeId, onSelect }) {
               }`}
             >
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-semibold text-emerald-800">
-                {c.initials}
+                {c.profilePicture ? (
+                  <img
+                    src={c.profilePicture}
+                    alt={`${c.name}'s profile`}
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                ) : (
+                  c.initials
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">

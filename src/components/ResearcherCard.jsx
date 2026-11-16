@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import FollowButton from "./FollowButton";
 import StartChatButton from "./StartChatButton";
+import { getProfilePictureUrl } from "../utils/profilePicture";
 
 function ResearcherCard({
   researcher,
@@ -52,7 +53,12 @@ function ResearcherCard({
         />
         <StartChatButton
           currentUserId={currentUserId}
-          user={{ id, name, institution }}
+          user={{
+            id,
+            name,
+            institution,
+            profilePicture: getProfilePictureUrl(researcher),
+          }}
         />
       </div>
     </div>

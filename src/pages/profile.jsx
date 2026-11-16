@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { FiEdit2, FiX } from "react-icons/fi";
 import AppShell from "../components/AppShell";
@@ -13,7 +13,13 @@ import {
   loadFollowing,
 } from "../context/followingSlice";
 import { loadProfile } from "../context/profileSlice";
-import { getBlogPostId, getBlogPosts } from "../services/social";
+import { getProfilePictureUrl } from "../utils/profilePicture";
+import {
+  getBlogPostId,
+  getBlogPosts,
+  getFollowers,
+  getFollowing,
+} from "../services/social";
 
 function extractList(response, keys) {
   if (Array.isArray(response)) return response;
@@ -49,6 +55,93 @@ function getProfileForm(profile) {
   };
 }
 
+const PROFILE_TEXT_FIELDS = [
+  "fullName",
+  "username",
+  "institution",
+  "fieldOfStudy",
+  "bio",
+  "briefResearchFocus",
+];
+
+function getChangedProfileFields(original, updated) {
+  const changed = {};
+  for (const field of PROFILE_TEXT_FIELDS) {
+    if (original[field] !== updated[field]) {
+      changed[field] = updated[field];
+    }
+  }
+  if (
+    JSON.stringify(original.areaOfInterest) !==
+    JSON.stringify(updated.areaOfInterest)
+  ) {
+    changed.areaOfInterest = updated.areaOfInterest;
+  }
+  if (updated.profilePicture instanceof File) {
+    changed.profilePicture = updated.profilePicture;
+  }
+  return changed;
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Unable to preview the selected profile picture."));
+      }
+    };
+    reader.onerror = () => reject(new Error("Unable to preview the selected profile picture."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function getConnectionData(response, listKey) {
+  let value = response;
+  while (value && typeof value === "object" && !Array.isArray(value) && value.data !== undefined) {
+    value = value.data;
+  }
+
+  const records = Array.isArray(value)
+    ? value
+    : value?.[listKey] ??
+      value?.users ??
+      value?.items ??
+      value?.relations ??
+      [];
+  const relationKey = listKey === "followers" ? "follower" : "following";
+  const people = Array.isArray(records)
+    ? records.map((record) => record?.[relationKey] ?? record?.user ?? record)
+    : [];
+  const countValue =
+    value?.total ??
+    value?.count ??
+    value?.[`${listKey}Count`] ??
+    people.length;
+  const count = Number(countValue);
+
+  return {
+    people: people.filter((person) => person && typeof person === "object"),
+    count: Number.isFinite(count) ? count : people.length,
+  };
+}
+
+function getConnectionId(person) {
+  const id = person?._id ?? person?.id ?? person?.userId;
+  return id == null ? null : String(id);
+}
+
+function getConnectionName(person) {
+  return person?.fullName ?? person?.name ?? person?.username ?? "Researcher";
+}
+
+function getErrorMessage(error, fallback) {
+  const message = error?.response?.data?.message ?? error?.message ?? fallback;
+  return Array.isArray(message) ? message.join(" ") : message;
+}
+
 function Profile() {
   const dispatch = useDispatch();
   const { userId: routeUserId } = useParams();
@@ -64,10 +157,21 @@ function Profile() {
   const [error, setError] = useState("");
   const [postsError, setPostsError] = useState("");
   const [postsErrorProfileId, setPostsErrorProfileId] = useState(null);
+  const [followers, setFollowers] = useState([]);
+  const [followingPeople, setFollowingPeople] = useState([]);
+  const [followersCount, setFollowersCount] = useState(null);
+  const [followingCount, setFollowingCount] = useState(null);
+  const [connectionsStatus, setConnectionsStatus] = useState("loading");
+  const [connectionsProfileId, setConnectionsProfileId] = useState(null);
+  const [connectionsError, setConnectionsError] = useState("");
+  const [connectionsErrorProfileId, setConnectionsErrorProfileId] = useState(null);
+  const [connectionListOpen, setConnectionListOpen] = useState("");
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState(getProfileForm(null));
+  const [originalProfileForm, setOriginalProfileForm] = useState(getProfileForm(null));
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileEditError, setProfileEditError] = useState("");
+  const [profilePicturePreview, setProfilePicturePreview] = useState("");
 
   useEffect(() => {
     if (!profileId) return undefined;
@@ -94,6 +198,42 @@ function Profile() {
           setLoadedProfileId(profileId);
           setStatus("failed");
         }
+      });
+    return () => {
+      active = false;
+    };
+  }, [profileId]);
+
+  useEffect(() => {
+    if (!profileId) return undefined;
+    let active = true;
+    Promise.allSettled([getFollowers(profileId), getFollowing(profileId)])
+      .then(([followersResult, followingResult]) => {
+        if (!active) return;
+        const errors = [];
+        if (followersResult.status === "fulfilled") {
+          const result = getConnectionData(followersResult.value, "followers");
+          setFollowers(result.people);
+          setFollowersCount(result.count);
+        } else {
+          errors.push(
+            getErrorMessage(followersResult.reason, "Unable to load followers.")
+          );
+        }
+
+        if (followingResult.status === "fulfilled") {
+          const result = getConnectionData(followingResult.value, "following");
+          setFollowingPeople(result.people);
+          setFollowingCount(result.count);
+        } else {
+          errors.push(
+            getErrorMessage(followingResult.reason, "Unable to load following.")
+          );
+        }
+        setConnectionsError(errors.join(" "));
+        setConnectionsErrorProfileId(profileId);
+        setConnectionsStatus(errors.length === 2 ? "failed" : "loaded");
+        setConnectionsProfileId(profileId);
       });
     return () => {
       active = false;
@@ -229,9 +369,37 @@ function Profile() {
   };
 
   const openProfileEditor = () => {
-    setProfileForm(getProfileForm(profile));
+    const form = getProfileForm(profile);
+    setProfileForm(form);
+    setOriginalProfileForm(form);
+    setProfilePicturePreview(getProfilePictureUrl(profile));
     setProfileEditError("");
     setEditingProfile(true);
+  };
+
+  const selectProfilePicture = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setProfileEditError("Choose a JPEG, PNG, GIF, or WebP image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileEditError("Profile pictures must be 5 MB or smaller.");
+      return;
+    }
+
+    try {
+      const preview = await readFileAsDataUrl(file);
+      setProfileForm((form) => ({ ...form, profilePicture: file }));
+      setProfilePicturePreview(preview);
+      setProfileEditError("");
+    } catch (previewError) {
+      setProfileEditError(previewError.message);
+    }
   };
 
   const saveProfile = async (event) => {
@@ -241,7 +409,25 @@ function Profile() {
     setProfileSaving(true);
     setProfileEditError("");
     try {
-      const response = await updateProfile(profileForm);
+      const changedFields = getChangedProfileFields(
+        originalProfileForm,
+        profileForm
+      );
+      if (Object.keys(changedFields).length === 0) {
+        setProfileEditError("Make at least one change before saving.");
+        setProfileSaving(false);
+        return;
+      }
+
+      const formData = new FormData();
+      for (const [field, value] of Object.entries(changedFields)) {
+        formData.append(
+          field,
+          field === "areaOfInterest" ? JSON.stringify(value) : value
+        );
+      }
+
+      const response = await updateProfile(formData);
       const savedProfile =
         response?.profile ??
         response?.user ??
@@ -250,8 +436,12 @@ function Profile() {
         response?.data;
       setProfile((existing) => ({
         ...existing,
-        ...profileForm,
+        ...changedFields,
         ...(savedProfile && typeof savedProfile === "object" ? savedProfile : {}),
+        profilePicture:
+          getProfilePictureUrl(savedProfile) ||
+          (changedFields.profilePicture ? profilePicturePreview : "") ||
+          getProfilePictureUrl(existing),
       }));
       if (String(profileId) === String(currentUserId)) {
         dispatch(loadProfile(currentUserId));
@@ -274,7 +464,15 @@ function Profile() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xl font-semibold text-emerald-800">
-              {initials}
+            {getProfilePictureUrl(profile) ? (
+              <img
+                src={getProfilePictureUrl(profile)}
+                alt={`${displayName}'s profile`}
+                className="h-full w-full rounded-full object-cover"
+              />
+            ) : (
+              initials
+            )}
             </div>
             <div className="min-w-0">
               <p className="break-words font-serif text-xl font-bold text-slate-900">
@@ -307,18 +505,30 @@ function Profile() {
                   following.status !== "loaded"
                 }
                 onFollowingChange={(nowFollowing) =>
-                  dispatch(
-                    followingStatusChanged({
-                      userId: currentUserId,
-                      targetId: profileId,
-                      isFollowing: nowFollowing,
-                    })
-                  )
+                  {
+                    dispatch(
+                      followingStatusChanged({
+                        userId: currentUserId,
+                        targetId: profileId,
+                        isFollowing: nowFollowing,
+                      })
+                    );
+                    setFollowersCount((count) =>
+                      count == null
+                        ? count
+                        : Math.max(0, count + (nowFollowing ? 1 : -1))
+                    );
+                  }
                 }
               />
               <StartChatButton
                 currentUserId={currentUserId}
-                user={{ id: profileId, name: displayName, institution }}
+                user={{
+                  id: profileId,
+                  name: displayName,
+                  institution,
+                  profilePicture: getProfilePictureUrl(profile),
+                }}
               />
             </div>
           )}
@@ -354,19 +564,44 @@ function Profile() {
         )}
 
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
-          <span>
+          <button
+            type="button"
+            onClick={() => setConnectionListOpen("followers")}
+            className="hover:text-emerald-800"
+          >
             <span className="font-semibold text-slate-900">
-              {profile?.followersCount ?? profile?.followers ?? "—"}
+              {connectionsProfileId === profileId
+                ? followersCount
+                : profile?.followersCount ??
+                  (Array.isArray(profile?.followers)
+                    ? profile.followers.length
+                    : profile?.followers) ??
+                  "—"}
             </span>{" "}
             followers
-          </span>
-          <span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setConnectionListOpen("following")}
+            className="hover:text-emerald-800"
+          >
             <span className="font-semibold text-slate-900">
-              {profile?.followingCount ?? profile?.following ?? "—"}
+              {connectionsProfileId === profileId
+                ? followingCount
+                : profile?.followingCount ??
+                  (Array.isArray(profile?.following)
+                    ? profile.following.length
+                    : profile?.following) ??
+                  "—"}
             </span>{" "}
             following
-          </span>
+          </button>
         </div>
+        {connectionsErrorProfileId === profileId && connectionsError && (
+          <p role="alert" className="mt-2 text-sm text-red-600">
+            {connectionsError}
+          </p>
+        )}
       </div>
 
       <p className="mb-3 font-serif text-lg font-bold text-slate-900">
@@ -439,12 +674,30 @@ function Profile() {
                     onChange={(event) =>
                       setProfileForm((form) => ({ ...form, [key]: event.target.value }))
                     }
-                    required={key === "fullName" || key === "username"}
                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
                   />
                 </label>
               ))}
             </div>
+            <label className="mt-4 block text-sm font-medium text-slate-700">
+              Profile picture
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                onChange={selectProfilePicture}
+                className="mt-1 block w-full cursor-pointer rounded-lg border border-slate-300 text-sm file:mr-3 file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:font-semibold file:text-emerald-800"
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                JPEG, PNG, GIF, or WebP. Maximum size: 5 MB.
+              </span>
+            </label>
+            {profilePicturePreview && (
+              <img
+                src={profilePicturePreview}
+                alt="Profile picture preview"
+                className="mt-3 h-20 w-20 rounded-full object-cover"
+              />
+            )}
             <label className="mt-4 block text-sm font-medium text-slate-700">
               Bio
               <textarea
@@ -501,6 +754,95 @@ function Profile() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {connectionListOpen && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/50 p-4"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setConnectionListOpen("");
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-connections-title"
+            className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 id="profile-connections-title" className="font-serif text-xl font-bold text-slate-900">
+                {connectionListOpen === "followers" ? "Followers" : "Following"}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setConnectionListOpen("")}
+                aria-label="Close list"
+                className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <FiX />
+              </button>
+            </div>
+            {connectionsProfileId !== profileId || connectionsStatus === "loading" ? (
+              <p role="status" className="text-sm text-slate-500">Loading...</p>
+            ) : (
+              (() => {
+                const people =
+                  connectionListOpen === "followers" ? followers : followingPeople;
+                if (people.length === 0) {
+                  return (
+                    <div>
+                      {connectionsErrorProfileId === profileId && connectionsError && (
+                        <p role="alert" className="mb-3 text-sm text-red-600">
+                          {connectionsError}
+                        </p>
+                      )}
+                      <p className="text-sm text-slate-500">
+                        {connectionListOpen === "followers"
+                          ? "No followers to show."
+                          : "Not following anyone yet."}
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="divide-y divide-slate-100">
+                    {people.map((person, index) => {
+                      const id = getConnectionId(person);
+                      const name = getConnectionName(person);
+                      const initials = name
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .map((part) => part[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase();
+                      return (
+                        <Link
+                          key={id ?? index}
+                          to={id ? `/profile/${id}` : "/profile"}
+                          onClick={() => setConnectionListOpen("")}
+                          className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-800">
+                            {initials}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate font-semibold text-slate-900">{name}</span>
+                            <span className="block truncate text-sm text-slate-500">
+                              {[person.username ? `@${person.username}` : "", person.institution]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()
+            )}
+          </section>
         </div>
       )}
     </AppShell>

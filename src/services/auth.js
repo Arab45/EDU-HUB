@@ -65,7 +65,11 @@ export async function fetchProfile(userId) {
 }
 
 export async function updateProfile(updatedData) {
-  const response = await api.patch("/users/update-profile", updatedData);
+  const response = await api.patch("/users/update-profile", updatedData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
   return response.data;
 }
 

@@ -10,6 +10,7 @@ import {
   getMessages,
   sendMessage,
 } from "../services/chat";
+import { getProfilePictureUrl } from "../utils/profilePicture";
 
 function extractList(response, keys) {
   if (Array.isArray(response)) return response;
@@ -82,6 +83,8 @@ function normalizeChat(chat, currentUserId, fallbackRecipient) {
     recipientId: getId(recipient),
     name,
     initials,
+    profilePicture:
+      getProfilePictureUrl(recipient) || getProfilePictureUrl(fallbackRecipient),
     institution:
       recipient.institution ?? recipient.academic?.institution ?? "",
     unread: chat.unreadCount ?? chat.unread ?? 0,
