@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import AppShell from "../components/AppShell";
 import PostCard from "../components/PostCard";
 import ResearcherCard from "../components/ResearcherCard";
+import LoadingState from "../components/LoadingState";
 import { getBlogPostId, getFollowing, search } from "../services/social";
 
 function extractList(response, keys) {
@@ -39,8 +40,11 @@ function Search() {
   const [page, setPage] = useState(1);
   const [searchStatus, setSearchStatus] = useState("idle");
   const [searchError, setSearchError] = useState("");
-  const [followingIds, setFollowingIds] = useState([]);
-  const [followingError, setFollowingError] = useState("");
+  const [following, setFollowing] = useState({
+    userId: null,
+    ids: [],
+    error: "",
+  });
   const currentUserId = useSelector((state) => state.profile.userId);
 
   useEffect(() => {
@@ -82,18 +86,22 @@ function Search() {
     getFollowing(currentUserId)
       .then((response) => {
         if (active) {
-          setFollowingIds(
-            extractList(response, ["following", "users", "items", "relations"])
+          setFollowing({
+            userId: String(currentUserId),
+            ids: extractList(response, ["following", "users", "items", "relations"])
               .map(getId)
-              .filter(Boolean)
-          );
+              .filter(Boolean),
+            error: "",
+          });
         }
       })
       .catch((requestError) => {
         if (active) {
-          setFollowingError(
-            getErrorMessage(requestError, "Unable to load follow status.")
-          );
+          setFollowing({
+            userId: String(currentUserId),
+            ids: [],
+            error: getErrorMessage(requestError, "Unable to load follow status."),
+          });
         }
       });
     return () => {
@@ -110,6 +118,11 @@ function Search() {
     Math.ceil(Math.max(postCount, userCount) / SEARCH_LIMIT)
   );
   const hasQuery = Boolean(query.trim());
+  const followingLoading = Boolean(
+    currentUserId && following.userId !== String(currentUserId)
+  );
+  const followingError =
+    following.userId === String(currentUserId) ? following.error : "";
 
   return (
     <AppShell>
@@ -138,11 +151,14 @@ function Search() {
       {!hasQuery ? (
         <p className="text-slate-500">Enter a name, username, or post keyword to search.</p>
       ) : searchStatus === "loading" ? (
-        <p role="status" className="text-slate-500">Searching...</p>
+        <LoadingState label="Searching..." />
       ) : searchError ? (
         <p role="alert" className="text-red-600">{searchError}</p>
       ) : (
         <>
+          {followingLoading && currentUserId && (
+            <LoadingState label="Loading your follow status..." className="mb-4" />
+          )}
           {followingError && (
             <p role="alert" className="mb-3 text-sm text-red-600">{followingError}</p>
           )}
@@ -168,13 +184,17 @@ function Search() {
                     key={id}
                     researcher={researcher}
                     currentUserId={currentUserId}
-                    isFollowing={followingIds.includes(id)}
+                    isFollowing={
+                      following.userId === String(currentUserId) &&
+                      following.ids.includes(id)
+                    }
                     onFollowingChange={(nowFollowing) =>
-                      setFollowingIds((current) =>
-                        nowFollowing
-                          ? [...new Set([...current, id])]
-                          : current.filter((followingId) => followingId !== id)
-                      )
+                      setFollowing((current) => ({
+                        ...current,
+                        ids: nowFollowing
+                          ? [...new Set([...current.ids, id])]
+                          : current.ids.filter((followingId) => followingId !== id),
+                      }))
                     }
                   />
                 );

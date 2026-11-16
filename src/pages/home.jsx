@@ -14,6 +14,7 @@ import {
   loadFollowing,
 } from "../context/followingSlice";
 import { getProfilePictureUrl } from "../utils/profilePicture";
+import LoadingState from "../components/LoadingState";
 
 function extractList(response, keys) {
   if (Array.isArray(response)) return response;
@@ -139,7 +140,9 @@ function Home() {
   return (
     <AppShell maxWidth="max-w-6xl">
       <div className="mb-6 rounded-xl bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 p-6 text-white">
-        <p className="font-serif text-2xl font-bold">Welcome back, {firstName}</p>
+        <p className="font-serif text-2xl font-bold">
+          {status === "loading" ? "Loading your profile..." : `Welcome back, ${firstName}`}
+        </p>
         <p className="mt-1 text-white/80">
           Here's what's new from the research community
         </p>
@@ -151,7 +154,7 @@ function Home() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_300px]">
         <div>
           {postsStatus === "loading" && (
-            <p role="status" className="text-slate-500">Loading posts...</p>
+            <LoadingState label="Loading posts..." className="mb-4" />
           )}
           {postsError && <p role="alert" className="mb-4 text-red-600">{postsError}</p>}
           {postsStatus === "loaded" && !postsError && posts.length === 0 && (
@@ -176,13 +179,11 @@ function Home() {
             </p>
             <div className="flex flex-col gap-3">
               {usersStatus === "loading" && (
-                <p role="status" className="text-sm text-slate-500">Loading researchers...</p>
+                <LoadingState label="Loading researchers..." />
               )}
               {usersError && <p role="alert" className="text-sm text-red-600">{usersError}</p>}
               {following.status === "loading" && (
-                <p role="status" className="text-sm text-slate-500">
-                  Checking follow status...
-                </p>
+                <LoadingState label="Checking follow status..." />
               )}
               {following.error && (
                 <p role="alert" className="text-sm text-red-600">

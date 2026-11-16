@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import ConversationList from "../components/CoversationList";
 import ChatWindow from "../components/Chat";
 import AppShell from "../components/AppShell";
+import LoadingState from "../components/LoadingState";
 import { fetchAllUsers, fetchProfile } from "../services/auth";
 import {
   getChats,
@@ -358,7 +359,7 @@ function Messages() {
       )}
       {chatsError && <p role="alert" className="mb-3 text-sm text-red-600">{chatsError}</p>}
       {currentUserId && loadingChats ? (
-        <p role="status" className="mb-3 text-slate-500">Loading conversations...</p>
+        <LoadingState label="Loading conversations..." className="mb-3" />
       ) : (
         <div className="grid h-[calc(100dvh-11rem)] min-h-[20rem] grid-cols-1 grid-rows-[minmax(0,1fr)] overflow-hidden rounded-xl border border-slate-200 bg-white md:h-[calc(100vh-4rem)] md:min-h-0 md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
           <div className={`min-h-0 min-w-0 ${showChat ? "hidden md:block" : "block"}`}>

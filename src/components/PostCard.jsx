@@ -20,6 +20,7 @@ import {
   unlikePost,
   updateBlogPost,
 } from "../services/social";
+import LoadingState from "./LoadingState";
 
 function unwrap(response) {
   let value = response;
@@ -140,6 +141,7 @@ function PostCard({ post, onPostUpdated, onPostDeleted }) {
   );
   const [commentText, setCommentText] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
+  const [commentsInitialLoading, setCommentsInitialLoading] = useState(true);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [error, setError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -187,6 +189,9 @@ function PostCard({ post, onPostUpdated, onPostDeleted }) {
               "Unable to load likes."
           );
         }
+      })
+      .finally(() => {
+        if (active) setCommentsInitialLoading(false);
       });
 
     getComments(postId)
@@ -488,7 +493,9 @@ function PostCard({ post, onPostUpdated, onPostDeleted }) {
 
       {commentsOpen && (
         <div className="mt-3 border-t border-slate-100 pt-3">
-          {comments.length === 0 ? (
+          {commentsInitialLoading && comments.length === 0 ? (
+            <LoadingState label="Loading comments..." className="mb-3" />
+          ) : comments.length === 0 ? (
             <p className="mb-3 text-sm text-slate-400">No comments yet.</p>
           ) : (
             <div className="mb-3 divide-y divide-slate-200">

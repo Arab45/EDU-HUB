@@ -14,6 +14,7 @@ import {
 } from "../context/followingSlice";
 import { loadProfile } from "../context/profileSlice";
 import { getProfilePictureUrl } from "../utils/profilePicture";
+import LoadingState from "../components/LoadingState";
 import {
   getBlogPostId,
   getBlogPosts,
@@ -290,7 +291,7 @@ function Profile() {
   if (loadedProfileId !== profileId || status === "loading") {
     return (
       <AppShell>
-        <p role="status" className="text-slate-600">Loading profile...</p>
+        <LoadingState label="Loading profile..." />
       </AppShell>
     );
   }
@@ -620,13 +621,13 @@ function Profile() {
           />
         ))
       ) : (
-        <p className="text-slate-500">
-          {feedProfileId !== profileId && embeddedPosts.length === 0
-            ? "Loading posts..."
-            : currentPostsError
-              ? "Unable to load posts right now."
-              : "No posts are available on this profile."}
-        </p>
+        feedProfileId !== profileId && embeddedPosts.length === 0 ? (
+          <LoadingState label="Loading posts..." />
+        ) : currentPostsError ? (
+          <p className="text-slate-500">Unable to load posts right now.</p>
+        ) : (
+          <p className="text-slate-500">No posts are available on this profile.</p>
+        )
       )}
 
       {editingProfile && (
@@ -784,7 +785,7 @@ function Profile() {
               </button>
             </div>
             {connectionsProfileId !== profileId || connectionsStatus === "loading" ? (
-              <p role="status" className="text-sm text-slate-500">Loading...</p>
+              <LoadingState label="Loading connections..." />
             ) : (
               (() => {
                 const people =

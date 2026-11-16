@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { profileSessionCleared } from "./context/profileSlice";
+import LoadingState from "./components/LoadingState";
 
 const Login = lazy(() => import("./pages/login"));
 const Signup = lazy(() => import("./pages/signup"));
@@ -29,7 +30,7 @@ function App() {
       <Suspense
         fallback={
           <main className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-600">
-            Loading page...
+            <LoadingState label="Loading page..." />
           </main>
         }
       >

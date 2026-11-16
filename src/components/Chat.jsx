@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { FiSend, FiArrowLeft, FiPaperclip, FiX } from "react-icons/fi";
+import LoadingState from "./LoadingState";
 
 function MessageBubble({ message }) {
   const attachments = Array.isArray(message.attachments) ? message.attachments : [];
@@ -166,9 +167,7 @@ function ChatWindow({
         className="scrollbar-hidden flex min-h-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto overscroll-contain bg-white p-3 sm:p-5"
       >
         {loadingMessages && (
-          <p role="status" className="text-center text-sm text-slate-500">
-            Loading messages...
-          </p>
+          <LoadingState label="Loading messages..." className="justify-center" />
         )}
         {(error || attachmentError) && (
           <p role="alert" className="text-sm text-red-600">
