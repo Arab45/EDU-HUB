@@ -54,6 +54,11 @@ export async function loginUser(credentials) {
   return response.data;
 }
 
+export async function logoutUser() {
+  const response = await api.post("/auth/logout");
+  return response.data;
+}
+
 export async function fetchData() {
   const response = await api.get("/posts");
   return response.data;

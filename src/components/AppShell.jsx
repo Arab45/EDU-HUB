@@ -1,4 +1,6 @@
-import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import {
   FiHome,
   FiSearch,
@@ -7,6 +9,9 @@ import {
   FiUser,
   FiLogOut,
 } from "react-icons/fi";
+import { profileSessionCleared } from "../context/profileSlice";
+import { clearAuthSession } from "../services/authSession";
+import { logoutUser } from "../services/auth";
 
 const NAV_ITEMS = [
   { to: "/home", label: "Home", mobileLabel: "Home", icon: FiHome },
@@ -18,6 +23,30 @@ const NAV_ITEMS = [
 
 function AppShell({ children, maxWidth = "max-w-3xl" }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const [logoutLoading, setLogoutLoading] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+
+  const handleLogout = async () => {
+    if (logoutLoading) return;
+    setLogoutLoading(true);
+    setLogoutError("");
+    try {
+      await logoutUser();
+      clearAuthSession();
+      dispatch(profileSessionCleared());
+      navigate("/login", { replace: true });
+    } catch (error) {
+      setLogoutError(
+        error.response?.data?.message ??
+          error.message ??
+          "Unable to log out. Please try again."
+      );
+    } finally {
+      setLogoutLoading(false);
+    }
+  };
 
   return (
     <div className="app-page-background min-h-screen w-full md:flex">
@@ -45,21 +74,39 @@ function AppShell({ children, maxWidth = "max-w-3xl" }) {
           </nav>
         </div>
 
-        <Link
-          to="/login"
-          className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-white/70 transition-colors duration-300 ease-in-out hover:bg-white/10 hover:text-white"
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={logoutLoading}
+          className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-white/70 transition-colors duration-300 ease-in-out hover:bg-white/10 hover:text-white disabled:cursor-wait disabled:opacity-60"
         >
           <FiLogOut className="text-lg" />
-          Log out
-        </Link>
+          {logoutLoading ? "Logging out..." : "Log out"}
+        </button>
       </aside>
 
-      <header className="bg-gradient-to-r from-emerald-700 via-emerald-800 to-emerald-950 px-4 py-3 text-white md:hidden">
+      <header className="flex items-center justify-between bg-gradient-to-r from-emerald-700 via-emerald-800 to-emerald-950 px-4 py-3 text-white md:hidden">
         <p className="font-serif text-xl font-bold">ResearchHub</p>
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={logoutLoading}
+          className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-white/90 hover:bg-white/10 disabled:opacity-60"
+        >
+          <FiLogOut aria-hidden="true" />
+          {logoutLoading ? "Logging out..." : "Log out"}
+        </button>
       </header>
 
       <main className="min-w-0 bg-white/65 p-4 pb-24 sm:p-6 sm:pb-24 md:flex-1 md:p-8">
-        <div className={`mx-auto w-full min-w-0 ${maxWidth}`}>{children}</div>
+        <div className={`mx-auto w-full min-w-0 ${maxWidth}`}>
+          {logoutError && (
+            <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              {Array.isArray(logoutError) ? logoutError.join(" ") : logoutError}
+            </p>
+          )}
+          {children}
+        </div>
       </main>
 
       <nav

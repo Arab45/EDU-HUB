@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { fetchAllFollows } from "../services/social";
-import { profileUserIdSet } from "./profileSlice";
+import { profileSessionCleared, profileUserIdSet } from "./profileSlice";
 
 function getId(value) {
   if (typeof value === "string" || typeof value === "number") {
@@ -108,6 +108,12 @@ const followingSlice = createSlice({
           state.status = "idle";
           state.error = null;
         }
+      })
+      .addCase(profileSessionCleared, (state) => {
+        state.userId = null;
+        state.ids = [];
+        state.status = "idle";
+        state.error = null;
       })
       .addCase(loadFollowing.pending, (state, action) => {
         state.userId = String(action.meta.arg);
