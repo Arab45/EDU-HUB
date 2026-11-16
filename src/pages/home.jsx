@@ -15,6 +15,7 @@ import {
 } from "../context/followingSlice";
 import { getProfilePictureUrl } from "../utils/profilePicture";
 import LoadingState from "../components/LoadingState";
+import ProfileAvatar from "../components/ProfileAvatar";
 
 function extractList(response, keys) {
   if (Array.isArray(response)) return response;
@@ -196,22 +197,18 @@ function Home() {
               {visibleUsers.map((user) => {
                 const id = getUserId(user);
                 const name = getUserName(user);
-                const initials = name
-                  .split(/\s+/)
-                  .filter(Boolean)
-                  .map((part) => part[0])
-                  .join("")
-                  .slice(0, 2)
-                  .toUpperCase();
                 return (
                 <div
                   key={id}
                   className="flex flex-wrap items-center justify-between gap-2"
                 >
                   <Link to={`/profile/${id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-800">
-                      {initials}
-                    </div>
+                    <ProfileAvatar
+                      user={user}
+                      userId={id}
+                      name={name}
+                      className="h-9 w-9"
+                    />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-900">
                         {name}

@@ -21,6 +21,7 @@ import {
   updateBlogPost,
 } from "../services/social";
 import LoadingState from "./LoadingState";
+import ProfileAvatar from "./ProfileAvatar";
 
 function unwrap(response) {
   let value = response;
@@ -121,13 +122,6 @@ function PostCard({ post, onPostUpdated, onPostDeleted }) {
     parsedDate && !Number.isNaN(parsedDate.getTime())
       ? parsedDate.toLocaleDateString()
       : "";
-  const initials = authorName
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(() =>
     initialCount(post.likeCount ?? post.likes)
@@ -355,9 +349,12 @@ function PostCard({ post, onPostUpdated, onPostDeleted }) {
   return (
     <article className="mb-5 min-w-0 rounded-xl border border-slate-200 bg-white p-4 transition-colors duration-300 ease-in-out hover:border-slate-300 sm:p-5">
       <div className="mb-3 flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-semibold text-emerald-800">
-          {post.authorInitials ?? initials}
-        </div>
+        <ProfileAvatar
+          user={author}
+          userId={authorId}
+          name={authorName}
+          className="h-10 w-10"
+        />
         <div className="min-w-0 flex-1">
           {authorId ? (
             <Link

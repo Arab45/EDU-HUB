@@ -811,6 +811,7 @@ function Profile() {
                     {people.map((person, index) => {
                       const id = getConnectionId(person);
                       const name = getConnectionName(person);
+                      const profilePicture = getProfilePictureUrl(person);
                       const initials = name
                         .split(/\s+/)
                         .filter(Boolean)
@@ -825,8 +826,18 @@ function Profile() {
                           onClick={() => setConnectionListOpen("")}
                           className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                         >
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-800">
-                            {initials}
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-100 text-sm font-semibold text-emerald-800">
+                            {profilePicture ? (
+                              <img
+                                src={profilePicture}
+                                alt={`${name}'s profile`}
+                                loading="lazy"
+                                decoding="async"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              initials
+                            )}
                           </span>
                           <span className="min-w-0">
                             <span className="block truncate font-semibold text-slate-900">{name}</span>
