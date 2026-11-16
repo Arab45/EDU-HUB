@@ -9,7 +9,7 @@ function ConversationList({ conversations, activeId, onSelect }) {
   );
 
   return (
-    <div className="flex h-full flex-col border-r border-slate-200">
+    <div className="flex h-full min-h-0 flex-col border-r border-slate-200">
       <div className="border-b border-slate-100 p-4">
         <p className="mb-3 font-serif text-xl font-bold text-slate-900">
           Messages
@@ -25,7 +25,7 @@ function ConversationList({ conversations, activeId, onSelect }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {filtered.length === 0 && (
           <p className="p-4 text-sm text-slate-400">No conversations found.</p>
         )}

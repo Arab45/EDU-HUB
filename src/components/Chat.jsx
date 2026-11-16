@@ -62,10 +62,16 @@ function ChatWindow({
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState([]);
   const [attachmentError, setAttachmentError] = useState("");
-  const bottomRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const messageList = messagesContainerRef.current;
+    if (messageList) {
+      messageList.scrollTo({
+        top: messageList.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, [conversation.id, conversation.messages.length]);
 
   const handleAttachmentChange = async (event) => {
@@ -121,7 +127,7 @@ function ChatWindow({
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="flex min-w-0 items-center gap-3 border-b border-slate-200 px-3 py-3 sm:px-5 sm:py-4">
         <button
           type="button"
@@ -145,7 +151,10 @@ function ChatWindow({
         </Link>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-white p-3 sm:p-5">
+      <div
+        ref={messagesContainerRef}
+        className="flex min-h-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto overscroll-contain bg-white p-3 sm:p-5"
+      >
         {loadingMessages && (
           <p role="status" className="text-center text-sm text-slate-500">
             Loading messages...
@@ -164,7 +173,6 @@ function ChatWindow({
         {conversation.messages.map((m) => (
           <MessageBubble key={m.id} message={m} />
         ))}
-        <div ref={bottomRef} />
       </div>
 
       <div className="flex items-end gap-2 border-t border-slate-200 p-3 sm:gap-3 sm:p-4">

@@ -265,15 +265,15 @@ function Messages() {
       {currentUserId && loadingChats ? (
         <p role="status" className="mb-3 text-slate-500">Loading conversations...</p>
       ) : (
-        <div className="grid h-[calc(100dvh-9rem)] min-h-[24rem] grid-cols-1 overflow-hidden rounded-xl border border-slate-200 bg-white md:h-[calc(100vh-4rem)] md:min-h-0 md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
-          <div className={showChat ? "hidden md:block" : "block"}>
+        <div className="grid h-[calc(100dvh-11rem)] min-h-[20rem] grid-cols-1 grid-rows-[minmax(0,1fr)] overflow-hidden rounded-xl border border-slate-200 bg-white md:h-[calc(100vh-4rem)] md:min-h-0 md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
+          <div className={`min-h-0 min-w-0 ${showChat ? "hidden md:block" : "block"}`}>
             <ConversationList
               conversations={conversations}
               activeId={activeId}
               onSelect={handleSelect}
             />
           </div>
-          <div className={showChat ? "block" : "hidden md:block"}>
+          <div className={`min-h-0 min-w-0 ${showChat ? "block" : "hidden md:block"}`}>
             {active ? (
               <ChatWindow
                 conversation={active}
