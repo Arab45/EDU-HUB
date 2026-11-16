@@ -146,6 +146,8 @@ function ChatWindow({
               <img
                 src={conversation.profilePicture}
                 alt={`${conversation.name}'s profile`}
+                loading="lazy"
+                decoding="async"
                 className="h-full w-full rounded-full object-cover"
               />
             ) : (

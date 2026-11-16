@@ -46,6 +46,8 @@ function ConversationList({ conversations, activeId, onSelect }) {
                   <img
                     src={c.profilePicture}
                     alt={`${c.name}'s profile`}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full rounded-full object-cover"
                   />
                 ) : (

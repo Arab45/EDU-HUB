@@ -139,7 +139,6 @@ function Messages() {
   const [activeId, setActiveId] = useState("");
   const [loadingChats, setLoadingChats] = useState(true);
   const [chatsError, setChatsError] = useState("");
-  const [profilePictureWarning, setProfilePictureWarning] = useState("");
   const [loadedMessagesId, setLoadedMessagesId] = useState("");
   const [sending, setSending] = useState(false);
   const [messageError, setMessageError] = useState("");
@@ -183,65 +182,66 @@ function Messages() {
           }
         }
 
-        const pictureResults = await Promise.allSettled([
-          fetchAllUsers(),
-          ...loaded
-            .filter(
-              (conversation) =>
-                conversation.recipientId && !conversation.profilePicture
-            )
-            .map((conversation) =>
-              fetchProfile(conversation.recipientId).then((response) => ({
-                conversationId: conversation.id,
-                picture: getUserPictureFromResponse(response),
-              }))
-            ),
-        ]);
-        const directoryResult = pictureResults[0];
-        const directoryUsers =
-          directoryResult.status === "fulfilled"
-            ? extractList(directoryResult.value, ["users", "items"])
-            : [];
-        const directoryPictures = new Map(
-          directoryUsers
-            .map((user) => [String(getId(user) ?? ""), getProfilePictureUrl(user)])
-            .filter(([id, picture]) => id && picture)
-        );
-        const profilePictures = pictureResults
-          .slice(1)
-          .filter((result) => result.status === "fulfilled")
-          .map((result) => result.value)
-          .filter((result) => result.picture);
-        const picturesByConversation = new Map(
-          profilePictures.map(({ conversationId, picture }) => [
-            conversationId,
-            picture,
-          ])
-        );
-        loaded = loaded.map((conversation) => ({
-          ...conversation,
-          profilePicture:
-            conversation.profilePicture ||
-            picturesByConversation.get(conversation.id) ||
-            directoryPictures.get(String(conversation.recipientId)) ||
-            "",
-        }));
-
         if (active) {
-          const conversationsWithoutPicture = loaded.filter(
-            (conversation) => !conversation.profilePicture
-          ).length;
-          setProfilePictureWarning(
-            conversationsWithoutPicture > 0
-              ? "The server did not provide profile pictures for some chat participants."
-              : ""
-          );
           setConversations(loaded);
           const nextActiveId = locationChatId
             ? String(locationChatId)
             : loaded[0]?.id ?? "";
           setActiveId(nextActiveId);
           setShowChat(Boolean(locationChatId));
+        }
+
+        const missingPictures = loaded.filter(
+          (conversation) =>
+            conversation.recipientId && !conversation.profilePicture
+        );
+        if (missingPictures.length > 0) {
+          void Promise.allSettled([
+            fetchAllUsers().then((usersResponse) => {
+              const users = extractList(usersResponse, ["users", "items"]);
+              return new Map(
+                users
+                  .map((user) => [
+                    String(getId(user) ?? ""),
+                    getProfilePictureUrl(user),
+                  ])
+                  .filter(([userId, picture]) => userId && picture)
+              );
+            }),
+            ...missingPictures.map((conversation) =>
+              fetchProfile(conversation.recipientId).then((response) => ({
+                conversationId: conversation.id,
+                picture: getUserPictureFromResponse(response),
+              }))
+            ),
+          ]).then(([directoryResult, ...profileResults]) => {
+            if (!active) return;
+            const directory =
+              directoryResult.status === "fulfilled"
+                ? directoryResult.value
+                : new Map();
+            const pictures = new Map(
+              profileResults
+                .filter(
+                  (result) =>
+                    result.status === "fulfilled" && result.value.picture
+                )
+                .map((result) => [
+                  result.value.conversationId,
+                  result.value.picture,
+                ])
+            );
+            setConversations((current) =>
+              current.map((conversation) => ({
+                ...conversation,
+                profilePicture:
+                  conversation.profilePicture ||
+                  pictures.get(conversation.id) ||
+                  directory.get(String(conversation.recipientId)) ||
+                  "",
+              }))
+            );
+          });
         }
       })
       .catch((requestError) => {
@@ -357,9 +357,6 @@ function Messages() {
         </p>
       )}
       {chatsError && <p role="alert" className="mb-3 text-sm text-red-600">{chatsError}</p>}
-      {profilePictureWarning && (
-        <p className="mb-3 text-sm text-slate-600">{profilePictureWarning}</p>
-      )}
       {currentUserId && loadingChats ? (
         <p role="status" className="mb-3 text-slate-500">Loading conversations...</p>
       ) : (
