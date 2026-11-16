@@ -64,11 +64,10 @@ function Login() {
       // Save the current user's ID in Redux so other pages can use it.
       dispatch(profileUserIdSet(loginResult.tokens.userId));
       try {
-        // Keep the user ID and one-hour expiry in this tab, without persisting credentials.
+        // Keep only the non-secret user ID across a page refresh.
         saveAuthSession(loginResult.tokens.userId);
       } catch {
-        // Login can still proceed when browser storage is unavailable.
-        console.warn("Could not save the session for expiry tracking after refresh.");
+        console.warn("Could not save the user ID for profile loading after refresh.");
       }
       // Navigate only after credentials and the required user ID are confirmed.
       navigate("/home");

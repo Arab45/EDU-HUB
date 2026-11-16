@@ -116,6 +116,21 @@ function Home() {
     [users, userId]
   );
 
+  const updatePost = (updatedPost) => {
+    const updatedId = getBlogPostId(updatedPost);
+    setPosts((existing) =>
+      existing.map((post) =>
+        getBlogPostId(post) === updatedId ? { ...post, ...updatedPost } : post
+      )
+    );
+  };
+
+  const deletePost = (deletedId) => {
+    setPosts((existing) =>
+      existing.filter((post) => getBlogPostId(post) !== String(deletedId))
+    );
+  };
+
   const firstName = (profile?.name ?? profile?.fullName ?? "Researcher")
     .trim()
     .split(/\s+/)[0];
@@ -144,7 +159,12 @@ function Home() {
             </p>
           )}
           {posts.map((post, index) => (
-            <PostCard key={getBlogPostId(post) ?? index} post={post} />
+            <PostCard
+              key={getBlogPostId(post) ?? index}
+              post={post}
+              onPostUpdated={updatePost}
+              onPostDeleted={deletePost}
+            />
           ))}
         </div>
 

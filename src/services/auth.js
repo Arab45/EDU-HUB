@@ -1,8 +1,5 @@
 import axios from "axios";
-import {
-  expireAuthSession,
-  isAuthSessionExpired,
-} from "./authSession";
+import { expireAuthSession } from "./authSession";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -16,15 +13,6 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-});
-
-api.interceptors.request.use((config) => {
-  const isLoginRequest = config.url?.includes("/auth/login");
-  if (!isLoginRequest && isAuthSessionExpired()) {
-    expireAuthSession();
-    return Promise.reject(new Error("Your session has expired. Please sign in again."));
-  }
-  return config;
 });
 
 api.interceptors.response.use(
@@ -73,6 +61,11 @@ export async function fetchData() {
 
 export async function fetchProfile(userId) {
   const response = await api.get(`/users/profile/${userId}`);
+  return response.data;
+}
+
+export async function updateProfile(updatedData) {
+  const response = await api.patch("/users/update-profile", updatedData);
   return response.data;
 }
 
