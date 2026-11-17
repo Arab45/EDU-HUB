@@ -1,14 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"; // Import helpers for async requests and Redux state.
-import { fetchProfile } from "../services/auth"; // Reuse the profile endpoint already defined in the auth service.
-import { USER_ID_STORAGE_KEY } from "../services/authSession";
-
-function getStoredUserId() { // Restore the non-secret user ID after a browser refresh.
-  try { // Read browser session storage when it is available.
-    return sessionStorage.getItem(USER_ID_STORAGE_KEY); // Return the ID saved after login.
-  } catch { // Handle browsers or environments where session storage is disabled.
-    return null; // Let the app show its missing-user-ID state instead of crashing.
-  } // Finish reading the stored ID.
-} // Finish the session ID helper.
+import { fetchProfile, getStoredUserId } from "../services/auth";
 
 export const loadProfile = createAsyncThunk( // Create a Redux action that fetches one user's profile.
   "profile/loadProfile", // Give the async action a descriptive Redux action type.

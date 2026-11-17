@@ -1,7 +1,7 @@
 import axios from "axios";
-import { expireAuthSession } from "./authSession";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
+const USER_ID_STORAGE_KEY = "researchhub-user-id";
 
 if (!BASE_URL) {
   throw new Error("VITE_BASE_URL is missing. Set it in the Vite environment file.");
@@ -20,13 +20,33 @@ api.interceptors.response.use(
   (error) => {
     const isLoginRequest = error.config?.url?.includes("/auth/login");
     if (error.response?.status === 401 && !isLoginRequest) {
-      expireAuthSession();
+      window.dispatchEvent(new Event("auth:unauthorized"));
     }
     return Promise.reject(error);
   }
 );
 
 export default api;
+
+export function getStoredUserId() {
+  try {
+    return sessionStorage.getItem(USER_ID_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveUserId(userId) {
+  sessionStorage.setItem(USER_ID_STORAGE_KEY, userId);
+}
+
+export function clearUserId() {
+  try {
+    sessionStorage.removeItem(USER_ID_STORAGE_KEY);
+  } catch {
+    console.warn("Could not clear the saved user ID from browser storage.");
+  }
+}
 
 export async function signUpUser(userData) {
   const response = await api.post("/users/signup", userData);

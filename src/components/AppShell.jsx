@@ -10,8 +10,7 @@ import {
   FiLogOut,
 } from "react-icons/fi";
 import { profileSessionCleared } from "../context/profileSlice";
-import { clearAuthSession } from "../services/authSession";
-import { logoutUser } from "../services/auth";
+import { clearUserId, logoutUser } from "../services/auth";
 
 const NAV_ITEMS = [
   { to: "/home", label: "Home", mobileLabel: "Home", icon: FiHome },
@@ -34,7 +33,7 @@ function AppShell({ children, maxWidth = "max-w-3xl" }) {
     setLogoutError("");
     try {
       await logoutUser();
-      clearAuthSession();
+      clearUserId();
       dispatch(profileSessionCleared());
       navigate("/login", { replace: true });
     } catch (error) {

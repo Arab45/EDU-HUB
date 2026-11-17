@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { profileSessionCleared } from "./context/profileSlice";
+import { clearUserId } from "./services/auth";
 import LoadingState from "./components/LoadingState";
 
 const Login = lazy(() => import("./pages/login"));
@@ -19,10 +20,16 @@ function App() {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const handleSessionExpired = () => dispatch(profileSessionCleared());
-    window.addEventListener("auth:session-expired", handleSessionExpired);
+    const handleUnauthorized = () => {
+      clearUserId();
+      dispatch(profileSessionCleared());
+      if (window.location.pathname !== "/login") {
+        window.location.replace("/login");
+      }
+    };
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
     return () =>
-      window.removeEventListener("auth:session-expired", handleSessionExpired);
+      window.removeEventListener("auth:unauthorized", handleUnauthorized);
   }, [dispatch]);
 
   return (

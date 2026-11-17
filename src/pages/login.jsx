@@ -7,7 +7,7 @@ import FormField from "../components/form";
 import { PrimaryButton } from "../components/primaryButton";
 import { useDispatch } from "react-redux";
 import { profileUserIdSet } from "../context/profileSlice";
-import { saveAuthSession } from "../services/authSession";
+import { saveUserId } from "../services/auth";
 
 const loginSchema = zod.object({
   // Require a valid email address before sending credentials to the server.
@@ -65,7 +65,7 @@ function Login() {
       dispatch(profileUserIdSet(loginResult.tokens.userId));
       try {
         // Keep only the non-secret user ID across a page refresh.
-        saveAuthSession(loginResult.tokens.userId);
+        saveUserId(loginResult.tokens.userId);
       } catch {
         console.warn("Could not save the user ID for profile loading after refresh.");
       }
