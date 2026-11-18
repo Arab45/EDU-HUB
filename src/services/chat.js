@@ -25,4 +25,30 @@ async function getMessages(chatId) {
   return response.data;
 }
 
-export { createChat, getChats, getChatById, sendMessage, getMessages };
+async function getUnreadMessages(page = 1, limit = 50) {
+  const response = await api.get("/chats/unread", {
+    params: { page, limit },
+  });
+  return response.data;
+}
+
+async function getUnreadCount() {
+  const response = await api.get("/chats/unread-count");
+  return response.data;
+}
+
+async function markChatRead(chatId) {
+  const response = await api.patch(`/chats/${chatId}/read`);
+  return response.data;
+}
+
+export {
+  createChat,
+  getChats,
+  getChatById,
+  sendMessage,
+  getMessages,
+  getUnreadMessages,
+  getUnreadCount,
+  markChatRead,
+};

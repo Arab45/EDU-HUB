@@ -40,13 +40,36 @@ function MessageBubble({ message }) {
             </p>
           );
         })}
-        <p
+        <div
           className={`mt-1 text-right text-xs ${
             message.fromMe ? "text-white/60" : "text-slate-400"
           }`}
         >
           {message.time}
-        </p>
+          {message.fromMe && (
+            <span
+              className={`ml-1 ${
+                message.readAt ? "text-sky-300" : "text-current"
+              }`}
+              aria-label={
+                message.readAt
+                  ? "Read"
+                  : message.deliveredAt
+                    ? "Delivered"
+                    : "Sent"
+              }
+              title={
+                message.readAt
+                  ? "Read"
+                  : message.deliveredAt
+                    ? "Delivered"
+                    : "Sent"
+              }
+            >
+              {message.readAt || message.deliveredAt ? "✓✓" : "✓"}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -59,11 +82,23 @@ function ChatWindow({
   sending = false,
   loadingMessages = false,
   error = "",
+  onTyping,
+  isOnline = false,
+  isTyping = false,
 }) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState([]);
   const [attachmentError, setAttachmentError] = useState("");
   const messagesContainerRef = useRef(null);
+  const typingTimerRef = useRef(null);
+
+  useEffect(
+    () => () => {
+      clearTimeout(typingTimerRef.current);
+      onTyping?.(false);
+    },
+    [conversation.id, onTyping]
+  );
 
   useEffect(() => {
     const messageList = messagesContainerRef.current;
@@ -112,10 +147,22 @@ function ChatWindow({
   const handleSend = async () => {
     const trimmed = text.trim();
     if ((!trimmed && attachments.length === 0) || sending) return;
+    clearTimeout(typingTimerRef.current);
+    onTyping?.(false);
     const sent = await onSend(trimmed, attachments);
     if (sent) {
       setText("");
       setAttachments([]);
+    }
+  };
+
+  const handleTextChange = (event) => {
+    const value = event.target.value;
+    setText(value);
+    onTyping?.(Boolean(value.trim()));
+    clearTimeout(typingTimerRef.current);
+    if (value.trim()) {
+      typingTimerRef.current = setTimeout(() => onTyping?.(false), 1200);
     }
   };
 
@@ -157,7 +204,9 @@ function ChatWindow({
           </div>
           <div className="min-w-0">
             <p className="truncate font-semibold text-slate-900">{conversation.name}</p>
-            <p className="truncate text-sm text-slate-500">{conversation.institution}</p>
+            <p className="truncate text-sm text-slate-500">
+              {isTyping ? "Typing..." : isOnline ? "Online" : conversation.institution}
+            </p>
           </div>
         </Link>
       </div>
@@ -196,7 +245,7 @@ function ChatWindow({
         </label>
         <textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={handleTextChange}
           onKeyDown={handleKeyDown}
           rows={1}
           placeholder="Write a message..."

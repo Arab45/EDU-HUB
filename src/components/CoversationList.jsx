@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FiSearch } from "react-icons/fi";
 
-function ConversationList({ conversations, activeId, onSelect }) {
+function ConversationList({ conversations, activeId, onSelect, unreadTotal = 0 }) {
   const [query, setQuery] = useState("");
 
   const filtered = conversations.filter((c) =>
@@ -11,9 +11,14 @@ function ConversationList({ conversations, activeId, onSelect }) {
   return (
     <div className="flex h-full min-h-0 flex-col border-r border-slate-200">
       <div className="border-b border-slate-100 p-4">
-        <p className="mb-3 font-serif text-xl font-bold text-slate-900">
-          Messages
-        </p>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="font-serif text-xl font-bold text-slate-900">Messages</p>
+          {unreadTotal > 0 && (
+            <span className="rounded-full bg-orange-500 px-2 py-0.5 text-xs font-semibold text-white">
+              {unreadTotal}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 transition-colors duration-300 ease-in-out focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-100">
           <FiSearch className="text-slate-400" />
           <input
