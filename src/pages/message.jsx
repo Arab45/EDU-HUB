@@ -17,6 +17,7 @@ import {
 } from "../services/chat";
 import { connectChatSocket } from "../services/chatSocket";
 import { getProfilePictureUrl } from "../utils/profilePicture";
+import { getLastSeenAt } from "../utils/presence";
 
 function extractList(response, keys) {
   if (Array.isArray(response)) return response;
@@ -175,6 +176,7 @@ function normalizeChat(chat, currentUserId, fallbackRecipient) {
       getProfilePictureUrl(fallbackRecipient),
     institution:
       recipient.institution ?? recipient.academic?.institution ?? "",
+    lastSeenAt: getLastSeenAt(recipient) ?? getLastSeenAt(chat),
     unread: Number(chat.unreadCount ?? chat.unread ?? 0) || 0,
     messages: (chat.messages ?? []).map((message) =>
       normalizeMessage(message, currentUserId)
@@ -198,7 +200,7 @@ function Messages() {
   const [chatsError, setChatsError] = useState("");
   const [socketStatus, setSocketStatus] = useState("connecting");
   const [socketError, setSocketError] = useState("");
-  const [onlineUsers, setOnlineUsers] = useState({});
+  const [presenceByUser, setPresenceByUser] = useState({});
   const [typingByChat, setTypingByChat] = useState({});
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [unreadError, setUnreadError] = useState("");
@@ -423,24 +425,48 @@ function Messages() {
       );
     };
     const handlePresenceOnline = (payload) => {
-      const userId = getId(payload?.user ?? payload?.userId ?? payload);
-      if (userId) setOnlineUsers((current) => ({ ...current, [userId]: true }));
+      const user = payload?.user ?? payload;
+      const userId = getId(user?.userId ?? user?._id ?? user?.id ?? user);
+      if (userId) {
+        setPresenceByUser((current) => ({
+          ...current,
+          [userId]: {
+            online: true,
+            lastSeenAt: current[userId]?.lastSeenAt ?? getLastSeenAt(user),
+          },
+        }));
+      }
     };
     const handlePresenceOffline = (payload) => {
-      const userId = getId(payload?.user ?? payload?.userId ?? payload);
-      if (userId) setOnlineUsers((current) => ({ ...current, [userId]: false }));
+      const user = payload?.user ?? payload;
+      const userId = getId(user?.userId ?? user?._id ?? user?.id ?? user);
+      if (userId) {
+        setPresenceByUser((current) => ({
+          ...current,
+          [userId]: {
+            online: false,
+            lastSeenAt:
+              getLastSeenAt(payload) ??
+              getLastSeenAt(user) ??
+              new Date().toISOString(),
+          },
+        }));
+      }
     };
     const handlePresenceStatus = (payload) => {
       const onlineIds = new Set(
         (payload?.userIds ?? []).map((user) => String(getId(user))).filter(Boolean)
       );
-      setOnlineUsers((current) => {
+      setPresenceByUser((current) => {
         const next = { ...current };
         conversationsRef.current.forEach((conversation) => {
           if (conversation.recipientId) {
-            next[String(conversation.recipientId)] = onlineIds.has(
-              String(conversation.recipientId)
-            );
+            const userId = String(conversation.recipientId);
+            next[userId] = {
+              online: onlineIds.has(userId),
+              lastSeenAt:
+                current[userId]?.lastSeenAt ?? conversation.lastSeenAt ?? null,
+            };
           }
         });
         return next;
@@ -655,11 +681,12 @@ function Messages() {
           setShowChat(Boolean(locationChatId));
         }
 
-        const missingPictures = loaded.filter(
+        const missingProfileDetails = loaded.filter(
           (conversation) =>
-            conversation.recipientId && !conversation.profilePicture
+            conversation.recipientId &&
+            (!conversation.profilePicture || !conversation.lastSeenAt)
         );
-        if (missingPictures.length > 0) {
+        if (missingProfileDetails.length > 0) {
           void Promise.allSettled([
             fetchAllUsers().then((usersResponse) => {
               const users = extractList(usersResponse, ["users", "items"]);
@@ -667,15 +694,19 @@ function Messages() {
                 users
                   .map((user) => [
                     String(getId(user) ?? ""),
-                    getProfilePictureUrl(user),
+                    {
+                      profilePicture: getProfilePictureUrl(user),
+                      lastSeenAt: getLastSeenAt(user),
+                    },
                   ])
-                  .filter(([userId, picture]) => userId && picture)
+                  .filter(([userId]) => userId)
               );
             }),
-            ...missingPictures.map((conversation) =>
+            ...missingProfileDetails.map((conversation) =>
               fetchProfile(conversation.recipientId).then((response) => ({
                 conversationId: conversation.id,
-                picture: getUserPictureFromResponse(response),
+                profilePicture: getUserPictureFromResponse(response),
+                lastSeenAt: getLastSeenAt(getProfileData(response)),
               }))
             ),
           ]).then(([directoryResult, ...profileResults]) => {
@@ -684,27 +715,47 @@ function Messages() {
               directoryResult.status === "fulfilled"
                 ? directoryResult.value
                 : new Map();
-            const pictures = new Map(
+            const profileDetails = new Map(
               profileResults
-                .filter(
-                  (result) =>
-                    result.status === "fulfilled" && result.value.picture
-                )
+                .filter((result) => result.status === "fulfilled")
                 .map((result) => [
                   result.value.conversationId,
-                  result.value.picture,
+                  result.value,
                 ])
             );
-            setConversations((current) =>
-              current.map((conversation) => ({
+            const enrichedConversations = conversationsRef.current.map((conversation) => {
+              const profile = profileDetails.get(conversation.id);
+              const directoryProfile = directory.get(
+                String(conversation.recipientId)
+              );
+              return {
                 ...conversation,
                 profilePicture:
                   conversation.profilePicture ||
-                  pictures.get(conversation.id) ||
-                  directory.get(String(conversation.recipientId)) ||
+                  profile?.profilePicture ||
+                  directoryProfile?.profilePicture ||
                   "",
-              }))
-            );
+                lastSeenAt:
+                  profile?.lastSeenAt ||
+                  directoryProfile?.lastSeenAt ||
+                  conversation.lastSeenAt ||
+                  null,
+              };
+            });
+            setConversations(enrichedConversations);
+            setPresenceByUser((current) => {
+              const next = { ...current };
+              enrichedConversations.forEach((conversation) => {
+                if (!conversation.recipientId || !conversation.lastSeenAt) return;
+                const userId = String(conversation.recipientId);
+                next[userId] = {
+                  online: current[userId]?.online ?? false,
+                  lastSeenAt:
+                    current[userId]?.lastSeenAt ?? conversation.lastSeenAt,
+                };
+              });
+              return next;
+            });
           });
         }
       })
@@ -888,6 +939,7 @@ function Messages() {
               activeId={activeId}
               onSelect={handleSelect}
               unreadTotal={unreadTotal}
+              presenceByUser={presenceByUser}
             />
           </div>
           <div className={`min-h-0 min-w-0 ${showChat ? "block" : "hidden md:block"}`}>
@@ -900,7 +952,13 @@ function Messages() {
                 loadingMessages={loadingMessages}
                 error={messageError}
                 onTyping={handleTyping}
-                isOnline={Boolean(onlineUsers[String(active.recipientId)])}
+                isOnline={Boolean(
+                  presenceByUser[String(active.recipientId)]?.online
+                )}
+                lastSeenAt={
+                  presenceByUser[String(active.recipientId)]?.lastSeenAt ??
+                  active.lastSeenAt
+                }
                 isTyping={Boolean(typingByChat[active.id])}
               />
             ) : (

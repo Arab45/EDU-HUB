@@ -1,9 +1,21 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { GiArchiveResearch } from "react-icons/gi";
 import { FcGraduationCap } from "react-icons/fc";
 import AuthShell from "../components/AuthShell";
 import { PrimaryButton } from "../components/primaryButton";
 
+const ONBOARDING_ROLE_KEY = "researchhub-onboarding-role";
+const ROLES = ["researcher", "student"];
+
+function getSavedRole() {
+  try {
+    const savedRole = sessionStorage.getItem(ONBOARDING_ROLE_KEY);
+    return ROLES.includes(savedRole) ? savedRole : null;
+  } catch {
+    return null;
+  }
+}
 
 function RoleCard({ icon, title, description, selected, onClick }) {
   return (
@@ -24,7 +36,21 @@ function RoleCard({ icon, title, description, selected, onClick }) {
 }
 
 function Onboarding() {
-  const [role, setRole] = useState(null);
+  const navigate = useNavigate();
+  const [role, setRole] = useState(getSavedRole);
+  const [roleStorageError, setRoleStorageError] = useState("");
+
+  const selectRole = (selectedRole) => {
+    setRole(selectedRole);
+    try {
+      sessionStorage.setItem(ONBOARDING_ROLE_KEY, selectedRole);
+      setRoleStorageError("");
+    } catch {
+      setRoleStorageError(
+        "Your selected account type could not be saved if you refresh this page."
+      );
+    }
+  };
 
   return (
     <AuthShell currentStep={1}>
@@ -44,19 +70,26 @@ function Onboarding() {
             title="Researcher"
             description="Share your work, find collaborators"
             selected={role === "researcher"}
-            onClick={() => setRole("researcher")}
+            onClick={() => selectRole("researcher")}
           />
           <RoleCard
             icon={<FcGraduationCap className="text-3xl" />}
             title="Student"
             description="Explore projects, gain experience"
             selected={role === "student"}
-            onClick={() => setRole("student")}
+            onClick={() => selectRole("student")}
           />
         </div>
 
-        {/* Link handles the actual navigation; disabled falls back to a plain button until a role is picked */}
-        <PrimaryButton to="/signup" disabled={!role}>
+        {roleStorageError && (
+          <p role="alert" className="text-sm text-amber-700">
+            {roleStorageError}
+          </p>
+        )}
+        <PrimaryButton
+          disabled={!role}
+          onClick={() => navigate("/signup", { state: { role } })}
+        >
           Continue
         </PrimaryButton>
       </div>

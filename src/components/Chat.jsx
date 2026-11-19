@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { FiSend, FiArrowLeft, FiPaperclip, FiX } from "react-icons/fi";
 import LoadingState from "./LoadingState";
+import { formatLastSeen } from "../utils/presence";
 
 function MessageBubble({ message }) {
   const attachments = Array.isArray(message.attachments) ? message.attachments : [];
@@ -85,6 +86,7 @@ function ChatWindow({
   onTyping,
   isOnline = false,
   isTyping = false,
+  lastSeenAt = null,
 }) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState([]);
@@ -205,7 +207,11 @@ function ChatWindow({
           <div className="min-w-0">
             <p className="truncate font-semibold text-slate-900">{conversation.name}</p>
             <p className="truncate text-sm text-slate-500">
-              {isTyping ? "Typing..." : isOnline ? "Online" : conversation.institution}
+              {isTyping
+                ? "Typing..."
+                : isOnline
+                  ? "Online"
+                  : formatLastSeen(lastSeenAt ?? conversation.lastSeenAt)}
             </p>
           </div>
         </Link>

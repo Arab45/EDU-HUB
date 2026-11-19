@@ -1,9 +1,9 @@
 const STEPS = ["Account Type", "Basic Info", "Profile Details", "Interests"];
 
-function Stepper({ currentStep }) {
+function Stepper({ currentStep, totalSteps = STEPS.length }) {
   return (
     <div className="flex flex-col gap-3">
-      {STEPS.map((label, index) => {
+      {STEPS.slice(0, totalSteps).map((label, index) => {
         const stepNumber = index + 1;
         const isActive = stepNumber === currentStep;
         const isComplete = stepNumber < currentStep;

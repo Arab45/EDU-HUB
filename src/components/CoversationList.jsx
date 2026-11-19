@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { FiSearch } from "react-icons/fi";
+import { formatLastSeen } from "../utils/presence";
 
-function ConversationList({ conversations, activeId, onSelect, unreadTotal = 0 }) {
+function ConversationList({
+  conversations,
+  activeId,
+  onSelect,
+  unreadTotal = 0,
+  presenceByUser = {},
+}) {
   const [query, setQuery] = useState("");
 
   const filtered = conversations.filter((c) =>
@@ -37,6 +44,7 @@ function ConversationList({ conversations, activeId, onSelect, unreadTotal = 0 }
         {filtered.map((c) => {
           const last = c.messages[c.messages.length - 1];
           const isActive = c.id === activeId;
+          const presence = presenceByUser[String(c.recipientId)];
           return (
             <button
               key={c.id}
@@ -61,9 +69,18 @@ function ConversationList({ conversations, activeId, onSelect, unreadTotal = 0 }
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="truncate font-semibold text-slate-900">
-                    {c.name}
-                  </p>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-900">{c.name}</p>
+                    <p
+                      className={`truncate text-xs ${
+                        presence?.online ? "text-emerald-700" : "text-slate-400"
+                      }`}
+                    >
+                      {presence?.online
+                        ? "Online"
+                        : formatLastSeen(presence?.lastSeenAt ?? c.lastSeenAt)}
+                    </p>
+                  </div>
                   <span className="shrink-0 text-xs text-slate-400">
                     {last?.time}
                   </span>

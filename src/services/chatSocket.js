@@ -11,5 +11,6 @@ const socketOrigin = new URL(BASE_URL).origin;
 export function connectChatSocket() {
   return io(`${socketOrigin}/chat`, {
     withCredentials: true,
+    transports: ["polling"],
   });
 }
