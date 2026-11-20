@@ -22,7 +22,7 @@ export function formatLastSeen(timestamp) {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return "Last seen unavailable";
 
-  return `Last seen ${date.toLocaleString([], {
+  return `Last seen at ${date.toLocaleString([], {
     year: "numeric",
     month: "short",
     day: "numeric",
