@@ -6,6 +6,8 @@ const LAST_SEEN_FIELDS = [
   "lastActivityAt",
 ];
 
+const LAST_SEEN_STORAGE_PREFIX = "edu-hub:last-seen:";
+
 export function getLastSeenAt(value) {
   if (!value || typeof value !== "object") return null;
   for (const field of LAST_SEEN_FIELDS) {
@@ -17,10 +19,29 @@ export function getLastSeenAt(value) {
   return null;
 }
 
+export function getCachedLastSeenAt(userId) {
+  if (!userId || typeof window === "undefined") return null;
+  const timestamp = window.localStorage.getItem(
+    `${LAST_SEEN_STORAGE_PREFIX}${userId}`
+  );
+  return getLastSeenAt({ lastSeenAt: timestamp });
+}
+
+export function cacheLastSeenAt(userId, timestamp) {
+  if (!userId || typeof window === "undefined") return;
+  const lastSeenAt = getLastSeenAt({ lastSeenAt: timestamp });
+  if (lastSeenAt) {
+    window.localStorage.setItem(
+      `${LAST_SEEN_STORAGE_PREFIX}${userId}`,
+      lastSeenAt
+    );
+  }
+}
+
 export function formatLastSeen(timestamp) {
-  if (!timestamp) return "Last seen unavailable";
+  if (!timestamp) return "Offline";
   const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return "Last seen unavailable";
+  if (Number.isNaN(date.getTime())) return "Offline";
 
   return `Last seen at ${date.toLocaleString([], {
     year: "numeric",

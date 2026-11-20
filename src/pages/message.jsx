@@ -17,7 +17,11 @@ import {
 } from "../services/chat";
 import { connectChatSocket } from "../services/chatSocket";
 import { getProfilePictureUrl } from "../utils/profilePicture";
-import { getLastSeenAt } from "../utils/presence";
+import {
+  cacheLastSeenAt,
+  getCachedLastSeenAt,
+  getLastSeenAt,
+} from "../utils/presence";
 
 function extractList(response, keys) {
   if (Array.isArray(response)) return response;
@@ -428,11 +432,15 @@ function Messages() {
       const user = payload?.user ?? payload;
       const userId = getId(user?.userId ?? user?._id ?? user?.id ?? user);
       if (userId) {
+        const lastSeenAt =
+          getLastSeenAt(payload) ??
+          getLastSeenAt(user) ??
+          getCachedLastSeenAt(userId);
         setPresenceByUser((current) => ({
           ...current,
           [userId]: {
             online: true,
-            lastSeenAt: current[userId]?.lastSeenAt ?? getLastSeenAt(user),
+            lastSeenAt: current[userId]?.lastSeenAt ?? lastSeenAt,
           },
         }));
       }
@@ -441,14 +449,16 @@ function Messages() {
       const user = payload?.user ?? payload;
       const userId = getId(user?.userId ?? user?._id ?? user?.id ?? user);
       if (userId) {
+        const lastSeenAt =
+          getLastSeenAt(payload) ??
+          getLastSeenAt(user) ??
+          new Date().toISOString();
+        cacheLastSeenAt(userId, lastSeenAt);
         setPresenceByUser((current) => ({
           ...current,
           [userId]: {
             online: false,
-            lastSeenAt:
-              getLastSeenAt(payload) ??
-              getLastSeenAt(user) ??
-              new Date().toISOString(),
+            lastSeenAt,
           },
         }));
       }
@@ -465,7 +475,9 @@ function Messages() {
             next[userId] = {
               online: onlineIds.has(userId),
               lastSeenAt:
-                current[userId]?.lastSeenAt ?? conversation.lastSeenAt ?? null,
+                current[userId]?.lastSeenAt ??
+                conversation.lastSeenAt ??
+                getCachedLastSeenAt(userId),
             };
           }
         });
@@ -642,6 +654,9 @@ function Messages() {
           .map((chat) => normalizeChat(chat, currentUserId, locationRecipient))
           .map((conversation) => ({
             ...conversation,
+            lastSeenAt:
+              conversation.lastSeenAt ??
+              getCachedLastSeenAt(conversation.recipientId),
             unread:
               unreadByChatRef.current.get(conversation.id) ??
               unreadBySenderRef.current.get(String(conversation.recipientId)) ??
@@ -674,6 +689,21 @@ function Messages() {
 
         if (active) {
           setConversations(loaded);
+          setPresenceByUser((current) => {
+            const next = { ...current };
+            loaded.forEach((conversation) => {
+              if (!conversation.recipientId) return;
+              const userId = String(conversation.recipientId);
+              next[userId] = {
+                online: current[userId]?.online ?? false,
+                lastSeenAt:
+                  current[userId]?.lastSeenAt ??
+                  conversation.lastSeenAt ??
+                  getCachedLastSeenAt(userId),
+              };
+            });
+            return next;
+          });
           const nextActiveId = locationChatId
             ? String(locationChatId)
             : loaded[0]?.id ?? "";
@@ -748,6 +778,7 @@ function Messages() {
               enrichedConversations.forEach((conversation) => {
                 if (!conversation.recipientId || !conversation.lastSeenAt) return;
                 const userId = String(conversation.recipientId);
+                cacheLastSeenAt(userId, conversation.lastSeenAt);
                 next[userId] = {
                   online: current[userId]?.online ?? false,
                   lastSeenAt:
