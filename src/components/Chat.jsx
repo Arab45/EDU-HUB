@@ -4,6 +4,8 @@ import { FiSend, FiArrowLeft, FiPaperclip, FiX } from "react-icons/fi";
 import LoadingState from "./LoadingState";
 import { formatLastSeen } from "../utils/presence";
 
+const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
+
 function MessageBubble({ message }) {
   const attachments = Array.isArray(message.attachments) ? message.attachments : [];
 
@@ -23,22 +25,32 @@ function MessageBubble({ message }) {
           const mimeType = attachment.mimeType ?? attachment.type ?? "";
           const data = attachment.data;
           const src =
-            typeof data === "string" && data.startsWith("data:")
+            typeof attachment.url === "string"
+              ? attachment.url
+              : typeof data === "string" && data.startsWith("data:")
               ? data
               : typeof data === "string"
                 ? `data:${mimeType || "application/octet-stream"};base64,${data}`
                 : "";
+          const fileName = attachment.fileName ?? attachment.name ?? "Attachment";
           return mimeType.startsWith("image/") && src ? (
             <img
-              key={attachment.fileName ?? index}
+              key={`${fileName}-${index}`}
               src={src}
-              alt={attachment.fileName ?? "Message attachment"}
+              alt={fileName}
               className="mt-2 max-h-64 max-w-full rounded-lg"
             />
           ) : (
-            <p key={attachment.fileName ?? index} className="mt-2 break-all text-sm">
-              {attachment.fileName ?? "Attachment"}
-            </p>
+            <a
+              key={`${fileName}-${index}`}
+              href={src || undefined}
+              download={fileName}
+              target={attachment.url ? "_blank" : undefined}
+              rel={attachment.url ? "noreferrer" : undefined}
+              className="mt-2 block break-all text-sm underline"
+            >
+              {fileName}
+            </a>
           );
         })}
         <div
@@ -115,9 +127,19 @@ function ChatWindow({
   const handleAttachmentChange = async (event) => {
     const files = Array.from(event.target.files ?? []);
     setAttachmentError("");
+    const acceptedFiles = files.filter((file) => file.size <= MAX_ATTACHMENT_SIZE);
+    const oversizedFiles = files.filter((file) => file.size > MAX_ATTACHMENT_SIZE);
+    if (oversizedFiles.length > 0) {
+      setAttachmentError(
+        `${oversizedFiles.map((file) => file.name).join(", ")} ${
+          oversizedFiles.length === 1 ? "is" : "are"
+        } larger than 5 MB. Choose files that are 5 MB or smaller.`
+      );
+    }
+
     try {
       const loadedAttachments = await Promise.all(
-        files.map(
+        acceptedFiles.map(
           (file) =>
             new Promise((resolve, reject) => {
               const reader = new FileReader();
@@ -140,7 +162,11 @@ function ChatWindow({
       );
       setAttachments((current) => [...current, ...loadedAttachments]);
     } catch (error) {
-      setAttachmentError(error.message ?? "Unable to read the selected attachment.");
+      setAttachmentError((current) =>
+        [current, error.message ?? "Unable to read the selected attachment."]
+        .filter(Boolean)
+        .join(" ")
+      );
     } finally {
       event.target.value = "";
     }
@@ -240,11 +266,15 @@ function ChatWindow({
       </div>
 
       <div className="flex items-end gap-2 border-t border-slate-200 p-3 sm:gap-3 sm:p-4">
-        <label className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">
+        <label
+          title="Attach files up to 5 MB each"
+          className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
+        >
           <FiPaperclip aria-label="Attach files" />
           <input
             type="file"
             multiple
+            aria-label="Attach files up to 5 MB each"
             onChange={handleAttachmentChange}
             className="hidden"
           />
