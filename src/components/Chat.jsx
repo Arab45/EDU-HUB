@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { FiSend, FiArrowLeft, FiPaperclip, FiX } from "react-icons/fi";
 import LoadingState from "./LoadingState";
 import { formatLastSeen } from "../utils/presence";
+import { compressImageFile } from "../utils/compressImage";
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 
@@ -139,26 +140,7 @@ function ChatWindow({
 
     try {
       const loadedAttachments = await Promise.all(
-        acceptedFiles.map(
-          (file) =>
-            new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => {
-                const result = reader.result;
-                if (typeof result !== "string") {
-                  reject(new Error(`Unable to read ${file.name}.`));
-                  return;
-                }
-                resolve({
-                  fileName: file.name,
-                  mimeType: file.type || "application/octet-stream",
-                  data: result.slice(result.indexOf(",") + 1),
-                });
-              };
-              reader.onerror = () => reject(new Error(`Unable to read ${file.name}.`));
-              reader.readAsDataURL(file);
-            })
-        )
+        acceptedFiles.map(compressImageFile)
       );
       setAttachments((current) => [...current, ...loadedAttachments]);
     } catch (error) {
@@ -301,10 +283,10 @@ function ChatWindow({
         <div className="flex flex-wrap gap-2 border-t border-slate-100 px-3 py-2 sm:px-4">
           {attachments.map((attachment, index) => (
             <span
-              key={`${attachment.fileName}-${index}`}
+              key={`${attachment.name}-${index}`}
               className="flex max-w-full items-center gap-2 rounded-lg bg-slate-100 px-2 py-1 text-xs text-slate-700"
             >
-              <span className="truncate">{attachment.fileName}</span>
+              <span className="truncate">{attachment.name}</span>
               <button
                 type="button"
                 onClick={() =>
@@ -312,7 +294,7 @@ function ChatWindow({
                     current.filter((_, attachmentIndex) => attachmentIndex !== index)
                   )
                 }
-                aria-label={`Remove ${attachment.fileName}`}
+                aria-label={`Remove ${attachment.name}`}
               >
                 <FiX />
               </button>

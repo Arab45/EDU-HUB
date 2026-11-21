@@ -14,6 +14,7 @@ import {
 } from "../context/followingSlice";
 import { loadProfile } from "../context/profileSlice";
 import { getProfilePictureUrl } from "../utils/profilePicture";
+import { compressImageFile } from "../utils/compressImage";
 import LoadingState from "../components/LoadingState";
 import {
   getBlogPostId,
@@ -394,8 +395,9 @@ function Profile() {
     }
 
     try {
-      const preview = await readFileAsDataUrl(file);
-      setProfileForm((form) => ({ ...form, profilePicture: file }));
+      const compressedFile = await compressImageFile(file);
+      const preview = await readFileAsDataUrl(compressedFile);
+      setProfileForm((form) => ({ ...form, profilePicture: compressedFile }));
       setProfilePicturePreview(preview);
       setProfileEditError("");
     } catch (previewError) {

@@ -16,7 +16,24 @@ async function getChatById(chatId) {
 }
 
 async function sendMessage(chatId, messageData) {
-  const response = await api.post(`/chats/${chatId}/messages`, messageData);
+  const { attachments = [], ...fields } = messageData;
+  const payload =
+    attachments.length > 0
+      ? (() => {
+          const formData = new FormData();
+          Object.entries(fields).forEach(([key, value]) => {
+            formData.append(key, value);
+          });
+          attachments.forEach((file) => formData.append("attachments", file));
+          return formData;
+        })()
+      : messageData;
+  const response = await api.post(`/chats/${chatId}/messages`, payload, {
+    headers:
+      payload instanceof FormData
+        ? { "Content-Type": "multipart/form-data" }
+        : undefined,
+  });
   return response.data;
 }
 

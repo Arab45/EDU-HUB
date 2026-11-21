@@ -5,6 +5,7 @@ import AppShell from "../components/AppShell";
 import { PrimaryButton } from "../components/primaryButton";
 import FormField from "../components/form";
 import { createBlogPost } from "../services/social";
+import { compressImageFile } from "../utils/compressImage";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_CONTENT_LENGTH = 280;
@@ -16,7 +17,7 @@ function NewPost() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleFileChange = (event) => {
+  const handleFileChange = async (event) => {
     const file = event.target.files?.[0] ?? null;
     event.target.value = "";
     setError("");
@@ -33,7 +34,14 @@ function NewPost() {
       return;
     }
 
-    setAttachment(file);
+    try {
+      setAttachment(
+        file.type.startsWith("image/") ? await compressImageFile(file) : file
+      );
+    } catch (compressionError) {
+      setAttachment(null);
+      setError(compressionError.message ?? "Unable to compress this image.");
+    }
   };
 
   const handlePublish = async (event) => {
