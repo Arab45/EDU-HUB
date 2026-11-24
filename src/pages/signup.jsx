@@ -22,6 +22,7 @@ const SIGNUP_ROLES = ["student", "researcher"];
 const emptyForm = {
   fullName: "",
   email: "",
+  role: "",
   password: "",
   confirmPassword: "",
   institution: "",
@@ -44,6 +45,7 @@ const signupDraftSchema = zod.object({
   form: zod.object({
     fullName: zod.string(),
     email: zod.string(),
+    role: zod.enum(SIGNUP_ROLES).optional(),
     institution: zod.string(),
     position: zod.string(),
     bio: zod.string(),
@@ -133,6 +135,7 @@ function validateAccountStep(form) {
   return zod.object({
     fullName: zod.string().min(1, "Full Name is required"),
     email: zod.string().email("Invalid email address"),
+    role: zod.enum(SIGNUP_ROLES),
     password: zod.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: zod.string().min(1, "Please confirm your password"),
   }).refine((data) => data.password === data.confirmPassword, {
@@ -196,13 +199,20 @@ function Signup() {
   const [initialDraft] = useState(() => readSignupDraft(requestedRole));
   const role = initialDraft.role;
   const finalStep = role === "student" ? 3 : LAST_STEP;
+  const steps =
+    role === "researcher"
+      ? ["Account Type", "Basic Info", "Interests", "Profile Details"]
+      : undefined;
   const [step, setStep] = useState(Math.min(initialDraft.step, finalStep));
   const [submitted, setSubmitted] = useState(false);
   const [signupError, setSignupError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draftNotice] = useState(initialDraft.notice);
   const [draftError, setDraftError] = useState("");
-  const [form, setForm] = useState(initialDraft.form);
+  const [form, setForm] = useState(() => ({
+    ...initialDraft.form,
+    role: initialDraft.role,
+  }));
   const [signupProgress, setSignupProgress] = useState(initialDraft.signupProgress);
 
   // Store only non-sensitive fields so progress survives a refresh without saving a password.
@@ -210,6 +220,7 @@ function Signup() {
     const savedForm = {
       fullName: nextForm.fullName,
       email: nextForm.email,
+      role: nextForm.role,
       institution: nextForm.institution,
       position: nextForm.position,
       bio: nextForm.bio,
@@ -221,7 +232,7 @@ function Signup() {
         SIGNUP_DRAFT_KEY,
         JSON.stringify({
           step: nextStep,
-          role,
+          role: nextForm.role,
           form: savedForm,
           signupProgress: nextSignupProgress,
         })
@@ -254,12 +265,12 @@ function Signup() {
     saveDraft(previousStep, form);
   };
 
-  // Save account and academic data to the database before moving forward.
+  // Save account data and researcher interests before moving forward.
   const goNext = async () => {
     const validation = step === 2 && !signupProgress.accountCreated
       ? validateAccountStep(form)
-      : step === 3
-        ? validateAcademicStep(form)
+      : step === 3 && role === "researcher"
+        ? validateResearchStep(form)
         : null;
     if (validation && !validation.success) {
       setSignupError(validation.error.issues[0]?.message ?? "Please check your information.");
@@ -275,7 +286,7 @@ function Signup() {
         // Create the account with the selected role and account credentials.
         const signupResult = await signUpUser({
           fullName: form.fullName,
-          role,
+          role: form.role,
           email: form.email,
           password: form.password,
         });
@@ -298,18 +309,17 @@ function Signup() {
         }));
       }
 
-      if (step === 3 && !progress.accountCreated) {
-        throw new Error("Create your account before saving academic details.");
+      if (step === 3 && role === "researcher" && !progress.accountCreated) {
+        throw new Error("Create your account before saving research details.");
       }
 
-      if (step === 3 && !progress.academicSaved) {
-        // Translate UI names to the AcademicStepDto property names.
-        await saveAcademicStep(progress.userId, {
-          fieldOfStudy: form.position,
-          institution: form.institution,
-          bio: form.bio,
+      if (step === 3 && role === "researcher" && !progress.researchSaved) {
+        // Researchers must save interests before academic profile details.
+        await saveResearchStep(progress.userId, {
+          areaOfInterest: form.interests,
+          briefResearchFocus: form.researchFocus,
         });
-        progress = { ...progress, academicSaved: true };
+        progress = { ...progress, researchSaved: true };
         setSignupProgress(progress);
       }
 
@@ -324,18 +334,14 @@ function Signup() {
     }
   };
 
-  // Save research data to the database and finish signup after all steps succeed.
+  // Save academic profile data after researcher interests, then finish signup.
   const handleComplete = async () => {
     const isStudent = role === "student";
-    const validation = isStudent
-      ? validateAcademicStep(form)
-      : validateResearchStep(form);
+    const validation = validateAcademicStep(form);
     if (!validation.success) {
       setSignupError(
         validation.error.issues[0]?.message ??
-          (isStudent
-            ? "Please check your profile details."
-            : "Please check your research details.")
+          "Please check your profile details."
       );
       return;
     }
@@ -344,33 +350,21 @@ function Signup() {
       return;
     }
 
-    if (!isStudent && !signupProgress.academicSaved) {
-      setSignupError("Finish the previous signup steps before saving research details.");
+    if (!isStudent && !signupProgress.researchSaved) {
+      setSignupError("Save your research interests before completing your profile.");
       return;
     }
 
     setIsSubmitting(true);
     setSignupError("");
     try {
-      if (isStudent) {
-        let progress = signupProgress;
-        if (!progress.academicSaved) {
-            await saveAcademicStep(signupProgress.userId, {
-              fieldOfStudy: form.position,
-              institution: form.institution,
-              bio: form.bio,
-            });
-          progress = { ...progress, academicSaved: true };
-          setSignupProgress(progress);
-        }
-        setSubmitted(true);
-      } else if (!signupProgress.researchSaved) {
-        // Translate UI names to the ResearchStepDto property names.
-        await saveResearchStep(signupProgress.userId, {
-          areaOfInterest: form.interests,
-          briefResearchFocus: form.researchFocus,
+      if (!signupProgress.academicSaved) {
+        await saveAcademicStep(signupProgress.userId, {
+          fieldOfStudy: form.position,
+          institution: form.institution,
+          bio: form.bio,
         });
-        const progress = { ...signupProgress, researchSaved: true };
+        const progress = { ...signupProgress, academicSaved: true };
         setSignupProgress(progress);
         saveDraft(step, form, progress);
       }
@@ -385,12 +379,7 @@ function Signup() {
       }
     } catch (error) {
       setSignupError(
-        getRequestErrorMessage(
-          error,
-          isStudent
-            ? "Unable to save your profile details."
-            : "Unable to save your research details."
-        )
+        getRequestErrorMessage(error, "Unable to save your profile details.")
       );
     } finally {
       setIsSubmitting(false);
@@ -400,7 +389,7 @@ function Signup() {
   // Render the confirmation only after the signup API call succeeds.
   if (submitted) {
     return (
-      <AuthShell currentStep={finalStep} totalSteps={finalStep}>
+      <AuthShell currentStep={finalStep} totalSteps={finalStep} steps={steps}>
         <div className="flex flex-col items-center text-center">
           <span className="mb-4 text-5xl">🎉</span>
           <p className="font-serif text-3xl font-bold text-slate-900">
@@ -424,7 +413,7 @@ function Signup() {
   }
 
   return (
-    <AuthShell currentStep={step} totalSteps={finalStep}>
+    <AuthShell currentStep={step} totalSteps={finalStep} steps={steps}>
       {/* Show only the fields belonging to the current step. */}
       <StepTransition stepKey={step}>
         {step === 2 && (
@@ -471,7 +460,7 @@ function Signup() {
           </>
         )}
 
-        {step === 3 && (
+        {step === 3 && role === "student" && (
           <>
             <p className="font-serif text-2xl font-bold text-slate-900">
               Profile Details
@@ -503,7 +492,7 @@ function Signup() {
           </>
         )}
 
-        {step === 4 && role === "researcher" && (
+        {step === 3 && role === "researcher" && (
           <>
             <p className="font-serif text-2xl font-bold text-slate-900">
               Research Interests
@@ -532,6 +521,36 @@ function Signup() {
               value={form.researchFocus}
               onChange={update("researchFocus")}
               placeholder="In 1-2 sentences, describe your research focus or interests..."
+            />
+          </>
+        )}
+
+        {step === 4 && role === "researcher" && (
+          <>
+            <p className="font-serif text-2xl font-bold text-slate-900">
+              Profile Details
+            </p>
+            <p className="mb-6 text-slate-500">
+              Tell us about your academic profile
+            </p>
+            <FormField
+              label="Institution *"
+              value={form.institution}
+              onChange={update("institution")}
+              placeholder="University of Lagos"
+            />
+            <FormField
+              label="Field of Study *"
+              value={form.position}
+              onChange={update("position")}
+              placeholder="Computer Science"
+            />
+            <FormField
+              label="Short Bio *"
+              textarea
+              value={form.bio}
+              onChange={update("bio")}
+              placeholder="A sentence or two about your background..."
             />
           </>
         )}

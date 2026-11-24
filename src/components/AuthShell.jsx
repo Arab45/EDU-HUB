@@ -1,6 +1,6 @@
 import Stepper from "./stepper";
 
-function AuthShell({ currentStep, totalSteps = 4, children }) {
+function AuthShell({ currentStep, totalSteps = 4, steps, children }) {
   return (
     <div className="academic-page-background flex min-h-screen w-full flex-col md:flex-row">
       <div
@@ -16,7 +16,7 @@ function AuthShell({ currentStep, totalSteps = 4, children }) {
 
         {currentStep && (
           <div className="relative z-10">
-            <Stepper currentStep={currentStep} totalSteps={totalSteps} />
+            <Stepper currentStep={currentStep} totalSteps={totalSteps} steps={steps} />
           </div>
         )}
       </div>
