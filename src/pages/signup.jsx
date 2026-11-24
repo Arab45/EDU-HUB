@@ -16,6 +16,7 @@ const LAST_STEP = 4;
 const SIGNUP_DRAFT_KEY = "researchhub-signup-draft";
 const ONBOARDING_ROLE_KEY = "researchhub-onboarding-role";
 const SIGNUP_ROLES = ["student", "researcher"];
+const DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Keep the initial values in one place so a new signup and a restored draft
 // always start with the same shape.
@@ -35,6 +36,7 @@ const emptyForm = {
 // Validate stored data before using it, since browser storage can be stale or edited.
 const signupDraftSchema = zod.object({
   step: zod.number().int().min(2).max(LAST_STEP),
+  expiresAt: zod.number().optional(),
   role: zod.enum(SIGNUP_ROLES).optional(),
   signupProgress: zod.object({
     accountCreated: zod.boolean().optional(),
@@ -54,55 +56,84 @@ const signupDraftSchema = zod.object({
   }),
 });
 
+function emptySignupDraft(role, notice = "") {
+  return {
+    step: 2,
+    role,
+    form: { ...emptyForm, role },
+    signupProgress: {
+      accountCreated: false,
+      userId: null,
+      academicSaved: false,
+      researchSaved: false,
+    },
+    notice,
+  };
+}
+
 function readSignupDraft(navigationRole) {
   try {
-    // Load the draft from this tab; no saved draft means a clean start.
-    const savedDraft = sessionStorage.getItem(SIGNUP_DRAFT_KEY);
     const storedRole = sessionStorage.getItem(ONBOARDING_ROLE_KEY);
     const requestedRole =
       navigationRole ??
       (SIGNUP_ROLES.includes(storedRole) ? storedRole : null);
+    let savedDraft = localStorage.getItem(SIGNUP_DRAFT_KEY);
+    let isSessionDraft = false;
     if (!savedDraft) {
-      return {
-        step: 2,
-        role: requestedRole ?? "researcher",
-        form: emptyForm,
-        signupProgress: {
-          accountCreated: false,
-          userId: null,
-          academicSaved: false,
-          researchSaved: false,
-        },
-        notice: "",
-      };
+      savedDraft = sessionStorage.getItem(SIGNUP_DRAFT_KEY);
+      isSessionDraft = Boolean(savedDraft);
+    }
+
+    if (!savedDraft) {
+      return emptySignupDraft(requestedRole ?? "researcher");
     }
 
     // Parse and validate the stored JSON before restoring it into React state.
     const result = signupDraftSchema.safeParse(JSON.parse(savedDraft));
     if (!result.success) {
       // Remove invalid or outdated data so it does not break future attempts.
+      localStorage.removeItem(SIGNUP_DRAFT_KEY);
       sessionStorage.removeItem(SIGNUP_DRAFT_KEY);
-      return {
-        step: 2,
-        role: requestedRole ?? "researcher",
-        form: emptyForm,
-        signupProgress: {
-          accountCreated: false,
-          userId: null,
-          academicSaved: false,
-          researchSaved: false,
-        },
-        notice: "Your saved signup draft could not be restored. Please start again.",
-      };
+      return emptySignupDraft(
+        requestedRole ?? "researcher",
+        "Your saved signup draft could not be restored. Please start again."
+      );
+    }
+
+    const savedRole = result.data.role ?? result.data.form.role;
+    const role =
+      result.data.signupProgress?.accountCreated
+        ? savedRole ?? requestedRole ?? "researcher"
+        : requestedRole ?? savedRole ?? "researcher";
+
+    if (
+      result.data.expiresAt !== undefined &&
+      result.data.expiresAt <= Date.now()
+    ) {
+      localStorage.removeItem(SIGNUP_DRAFT_KEY);
+      sessionStorage.removeItem(SIGNUP_DRAFT_KEY);
+      return emptySignupDraft(
+        requestedRole ?? role,
+        "Your saved signup draft expired after 7 days. Please start again."
+      );
+    }
+
+    if (isSessionDraft || result.data.expiresAt === undefined) {
+      localStorage.setItem(
+        SIGNUP_DRAFT_KEY,
+        JSON.stringify({
+          ...result.data,
+          expiresAt: Date.now() + DRAFT_TTL_MS,
+        })
+      );
+      sessionStorage.removeItem(SIGNUP_DRAFT_KEY);
     }
 
     // Restore the last step and fields; the password is deliberately not stored.
     return {
       step: result.data.step,
-      role: result.data.signupProgress?.accountCreated
-        ? result.data.role ?? requestedRole ?? "researcher"
-        : requestedRole ?? result.data.role ?? "researcher",
-      form: { ...emptyForm, ...result.data.form },
+      role,
+      form: { ...emptyForm, ...result.data.form, role },
       signupProgress: {
         accountCreated: result.data.signupProgress?.accountCreated ?? false,
         userId: result.data.signupProgress?.userId ?? null,
@@ -115,18 +146,10 @@ function readSignupDraft(navigationRole) {
     };
   } catch {
     // Storage may be unavailable or contain malformed JSON; recover with a clean form.
-    return {
-      step: 2,
-      role: navigationRole ?? "researcher",
-      form: emptyForm,
-      signupProgress: {
-        accountCreated: false,
-        userId: null,
-        academicSaved: false,
-        researchSaved: false,
-      },
-      notice: "Your signup progress could not be read from this browser session.",
-    };
+    return emptySignupDraft(
+      navigationRole ?? "researcher",
+      "Your signup progress could not be read from this browser session."
+    );
   }
 }
 
@@ -228,10 +251,11 @@ function Signup() {
       researchFocus: nextForm.researchFocus,
     };
     try {
-      sessionStorage.setItem(
+      localStorage.setItem(
         SIGNUP_DRAFT_KEY,
         JSON.stringify({
           step: nextStep,
+          expiresAt: Date.now() + DRAFT_TTL_MS,
           role: nextForm.role,
           form: savedForm,
           signupProgress: nextSignupProgress,
@@ -239,7 +263,7 @@ function Signup() {
       );
       setDraftError("");
     } catch {
-      setDraftError("Your progress could not be saved in this browser session.");
+      setDraftError("Your progress could not be saved in this browser.");
     }
   };
 
@@ -265,8 +289,8 @@ function Signup() {
     saveDraft(previousStep, form);
   };
 
-  // Save account data and researcher interests before moving forward.
-  const goNext = async () => {
+  // Validate the current step and keep progress in the browser until completion.
+  const goNext = () => {
     const validation = step === 2 && !signupProgress.accountCreated
       ? validateAccountStep(form)
       : step === 3 && role === "researcher"
@@ -277,13 +301,56 @@ function Signup() {
       return;
     }
 
+    const nextStep = Math.min(step + 1, finalStep);
+    setSignupError("");
+    setStep(nextStep);
+    saveDraft(nextStep, form);
+  };
+
+  // Save academic profile data after researcher interests, then finish signup.
+  const handleComplete = async () => {
+    const isStudent = role === "student";
+    if (!signupProgress.accountCreated) {
+      const accountValidation = validateAccountStep(form);
+      if (!accountValidation.success) {
+        setSignupError(
+          accountValidation.error.issues[0]?.message ??
+            "Please check your account details."
+        );
+        setStep(2);
+        saveDraft(2, form);
+        return;
+      }
+    }
+
+    if (!isStudent) {
+      const researchValidation = validateResearchStep(form);
+      if (!researchValidation.success) {
+        setSignupError(
+          researchValidation.error.issues[0]?.message ??
+            "Please check your research details."
+        );
+        setStep(3);
+        saveDraft(3, form);
+        return;
+      }
+    }
+
+    const academicValidation = validateAcademicStep(form);
+    if (!academicValidation.success) {
+      setSignupError(
+        academicValidation.error.issues[0]?.message ??
+          "Please check your profile details."
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     setSignupError("");
     try {
       let progress = signupProgress;
 
-      if (step === 2 && !progress.accountCreated) {
-        // Create the account with the selected role and account credentials.
+      if (!progress.accountCreated) {
         const signupResult = await signUpUser({
           fullName: form.fullName,
           role: form.role,
@@ -307,64 +374,26 @@ function Signup() {
           password: "",
           confirmPassword: "",
         }));
+        saveDraft(step, form, progress);
       }
 
-      if (step === 3 && role === "researcher" && !progress.accountCreated) {
-        throw new Error("Create your account before saving research details.");
-      }
-
-      if (step === 3 && role === "researcher" && !progress.researchSaved) {
-        // Researchers must save interests before academic profile details.
+      if (!isStudent && !progress.researchSaved) {
         await saveResearchStep(progress.userId, {
           areaOfInterest: form.interests,
           briefResearchFocus: form.researchFocus,
         });
         progress = { ...progress, researchSaved: true };
         setSignupProgress(progress);
+        saveDraft(step, form, progress);
       }
 
-      const nextStep = Math.min(step + 1, finalStep);
-      setStep(nextStep);
-      saveDraft(nextStep, form, progress);
-    } catch (error) {
-      // Keep the current step open so the user can retry a failed API request.
-      setSignupError(getRequestErrorMessage(error, "Unable to save this signup step."));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Save academic profile data after researcher interests, then finish signup.
-  const handleComplete = async () => {
-    const isStudent = role === "student";
-    const validation = validateAcademicStep(form);
-    if (!validation.success) {
-      setSignupError(
-        validation.error.issues[0]?.message ??
-          "Please check your profile details."
-      );
-      return;
-    }
-    if (!signupProgress.accountCreated) {
-      setSignupError("Create your account before completing onboarding.");
-      return;
-    }
-
-    if (!isStudent && !signupProgress.researchSaved) {
-      setSignupError("Save your research interests before completing your profile.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSignupError("");
-    try {
-      if (!signupProgress.academicSaved) {
-        await saveAcademicStep(signupProgress.userId, {
+      if (!progress.academicSaved) {
+        await saveAcademicStep(progress.userId, {
           fieldOfStudy: form.position,
           institution: form.institution,
           bio: form.bio,
         });
-        const progress = { ...signupProgress, academicSaved: true };
+        progress = { ...progress, academicSaved: true };
         setSignupProgress(progress);
         saveDraft(step, form, progress);
       }
@@ -372,6 +401,7 @@ function Signup() {
       setSubmitted(true);
       try {
         // Clear the draft only after all account and onboarding requests succeed.
+        localStorage.removeItem(SIGNUP_DRAFT_KEY);
         sessionStorage.removeItem(SIGNUP_DRAFT_KEY);
         sessionStorage.removeItem(ONBOARDING_ROLE_KEY);
       } catch {
@@ -379,7 +409,7 @@ function Signup() {
       }
     } catch (error) {
       setSignupError(
-        getRequestErrorMessage(error, "Unable to save your profile details.")
+        getRequestErrorMessage(error, "Unable to complete your signup. Please try again.")
       );
     } finally {
       setIsSubmitting(false);

@@ -40,6 +40,7 @@ function TagInputField({ label, hint, value, onChange, placeholder }) {
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onBlur={addTag}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -49,6 +50,15 @@ function TagInputField({ label, hint, value, onChange, placeholder }) {
           placeholder={value.length === 0 ? placeholder : ""}
           className="min-w-[120px] flex-1 border-none py-1 text-slate-900 placeholder:text-slate-400 focus:outline-none"
         />
+        <button
+          type="button"
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={addTag}
+          disabled={!text.trim()}
+          className="rounded-md px-2 py-1 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Add
+        </button>
       </div>
       {hint && <p className="mt-1.5 text-xs text-slate-500">{hint}</p>}
     </div>
